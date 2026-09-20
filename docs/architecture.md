@@ -75,7 +75,7 @@ A third repo, `seemantshekhar43/publishd-content-template`, is a GitHub *templat
 publishd/
   apps/
     web/                 Astro site + /api/ingest route
-      src/content/       content collection, CI-cloned from the content repo
+      src/content/       content collection, synced from the content repo at build time
       src/pages/
       src/components/
       src/styles/

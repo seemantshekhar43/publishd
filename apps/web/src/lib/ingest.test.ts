@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashToken } from './auth.js';
 import { resetRateLimitsForTests, PUBLISHES_PER_HOUR } from './rate-limit.js';
-import { createIngestHandler, type IngestHandlerDeps } from '../pages/api/ingest.js';
+import {
+  createIngestHandler,
+  resolveContentBranch,
+  type IngestHandlerDeps,
+} from '../pages/api/ingest.js';
 
 const target = {
   owner: 'example-owner',
@@ -183,5 +187,17 @@ describe('POST /api/ingest', () => {
     } as Parameters<typeof handler>[0]);
 
     expect(response.status).toBe(502);
+  });
+});
+
+describe('resolveContentBranch', () => {
+  it('falls back to the configured branch when PUBLISHD_CONTENT_BRANCH is unset', () => {
+    expect(resolveContentBranch({}, 'main')).toBe('main');
+  });
+
+  it('overrides the configured branch when PUBLISHD_CONTENT_BRANCH is set', () => {
+    expect(resolveContentBranch({ PUBLISHD_CONTENT_BRANCH: 'staging' }, 'main')).toBe(
+      'staging',
+    );
   });
 });

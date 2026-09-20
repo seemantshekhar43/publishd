@@ -6,8 +6,8 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "prebuild": "pnpm --filter publishd-schema build",
-    "predev": "pnpm --filter publishd-schema build",
+    "prebuild": "pnpm --filter publishd-schema build && tsc -b ../../tsconfig.site-config.json && node scripts/sync-content.mjs",
+    "predev": "pnpm --filter publishd-schema build && tsc -b ../../tsconfig.site-config.json && node scripts/sync-content.mjs",
     "pretypecheck": "pnpm --filter publishd-schema build",
     "dev": "astro dev",
     "build": "astro build",

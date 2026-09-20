@@ -295,7 +295,7 @@ Content commits should not trigger code CI, code commits should not appear in co
 publishd/
   apps/
     web/                 Astro site + /api/ingest route
-      src/content/       content collection (CI-cloned)
+      src/content/       content collection (synced at build time)
       src/pages/
       src/components/
     cli/                 the publishd CLI

@@ -15,6 +15,10 @@ coverage/
 # local Claude Code session state
 .claude/
 
+# synced from the private content repo at build time - never committed here
+apps/web/src/content/posts/*
+!apps/web/src/content/posts/.gitkeep
+
 # env + secrets
 .env
 .env.*

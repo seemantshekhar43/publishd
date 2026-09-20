@@ -133,6 +133,18 @@ export function createIngestHandler(deps: IngestHandlerDeps): APIRoute {
   };
 }
 
+/**
+ * Overridable so a staging deployment can commit to a content branch other
+ * than production's, without touching site.config.ts. See docs/PRD.md
+ * section 11's Environments table and issue #39.
+ */
+export function resolveContentBranch(
+  env: Record<string, string | undefined>,
+  configuredBranch: string,
+): string {
+  return env.PUBLISHD_CONTENT_BRANCH ?? configuredBranch;
+}
+
 const siteConfig = getSiteConfig();
 
 export const POST: APIRoute = createIngestHandler({
@@ -141,7 +153,7 @@ export const POST: APIRoute = createIngestHandler({
   target: {
     owner: siteConfig.content.repo.split('/')[0] ?? '',
     repo: siteConfig.content.repo.split('/')[1] ?? '',
-    branch: siteConfig.content.branch,
+    branch: resolveContentBranch(process.env, siteConfig.content.branch),
   },
   siteUrl: siteConfig.url,
 });
