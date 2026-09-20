@@ -8,24 +8,33 @@
  *
  * A frontmatter field is declared exactly once, here. See docs/architecture.md
  * section 3 and docs/content-schema.md for the full contract.
- *
- * Scaffold only. The real schema lands with issue #4.
  */
 
-/** Content kinds. An `article` is rendered; a `page` is hosted verbatim. */
-export const CONTENT_KINDS = ['article', 'page'] as const;
-export type ContentKind = (typeof CONTENT_KINDS)[number];
+export {
+  CONTENT_KINDS,
+  CONTENT_STATUSES,
+  CONTENT_TYPES,
+  SCHEMA_VERSION,
+  type ContentKind,
+  type ContentStatus,
+  type ContentType,
+} from './constants.js';
 
-/** Drives layout, not taxonomy. Tags do taxonomy. */
-export const CONTENT_TYPES = ['post', 'note', 'til', 'doc'] as const;
-export type ContentType = (typeof CONTENT_TYPES)[number];
+export {
+  parseArticleFrontmatter,
+  type ArticleFrontmatter,
+  type ArticleFrontmatterInput,
+} from './article.js';
 
-/** See docs/content-schema.md section 4 for the lifecycle. */
-export const CONTENT_STATUSES = ['draft', 'published', 'archived'] as const;
-export type ContentStatus = (typeof CONTENT_STATUSES)[number];
+export {
+  deriveSlug,
+  hasValidSlugShape,
+  isReservedSlug,
+  RESERVED_SLUGS,
+  SLUG_MAX_LENGTH,
+} from './slug.js';
 
-/** Package version marker, surfaced by `/api/health` once that exists. */
-export const SCHEMA_VERSION = '0.0.0';
+export { SchemaValidationError, type SchemaIssue } from './errors.js';
 
 export {
   defineSiteConfig,
