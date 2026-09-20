@@ -12,6 +12,9 @@ coverage/
 # local review artifacts (inkloop sessions are local planning scratch)
 .inkloop/
 
+# local Claude Code session state
+.claude/
+
 # env + secrets
 .env
 .env.*
