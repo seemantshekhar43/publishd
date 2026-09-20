@@ -721,6 +721,4 @@ All settled across four review rounds on the HTML artifact.
 | GitHub owner | `seemantshekhar43`. No org | 3 |
 | Repo naming | `publishd` for the tool, `shekse-publish-content` for content | 4 |
 
-### Outstanding
-
-- The round-1 feedback note ended with a bare `5.` and no text. Items 1-3 became `docs/design.md` (§8.2), the icon theme toggle (§9.5), and the SEO surfaces (§9.4). **Item 5 is still unknown.**
+All decisions are settled. Nothing blocks M1.
