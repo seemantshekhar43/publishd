@@ -10,6 +10,16 @@
 const WINDOW_MS = 60 * 60 * 1000;
 export const PUBLISHES_PER_HOUR = 30;
 
+/**
+ * The rate limit is checked before auth resolves (docs/architecture.md
+ * section 4: "rate limiter still counts the attempt" even for an invalid
+ * token), so `key` is attacker-controlled - an unauthenticated caller could
+ * otherwise grow this map without bound by sending endless distinct bogus
+ * tokens. Cap the number of tracked keys and evict the least-recently-used
+ * one once full, rather than only pruning each key's own timestamps.
+ */
+export const MAX_TRACKED_KEYS = 10_000;
+
 const attempts = new Map<string, number[]>();
 
 /** Records an attempt for `key` and returns whether it is within the limit. */
@@ -19,7 +29,18 @@ export function checkRateLimit(key: string, now = Date.now()): boolean {
   );
   const withinLimit = recent.length < PUBLISHES_PER_HOUR;
   recent.push(now);
+
+  // Re-inserting moves the key to the end, so `.keys().next()` below always
+  // evicts the least-recently-used entry, not an arbitrary one.
+  attempts.delete(key);
   attempts.set(key, recent);
+  if (attempts.size > MAX_TRACKED_KEYS) {
+    const oldestKey = attempts.keys().next().value;
+    if (oldestKey !== undefined) {
+      attempts.delete(oldestKey);
+    }
+  }
+
   return withinLimit;
 }
 
