@@ -26,3 +26,9 @@ export type ContentStatus = (typeof CONTENT_STATUSES)[number];
 
 /** Package version marker, surfaced by `/api/health` once that exists. */
 export const SCHEMA_VERSION = '0.0.0';
+
+export {
+  defineSiteConfig,
+  type SiteConfig,
+  type SiteConfigInput,
+} from './site-config.js';
