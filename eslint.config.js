@@ -37,5 +37,14 @@ export default tseslint.config(
     files: ['apps/web/src/pages/api/ingest.ts'],
     rules: { 'no-console': ['warn', { allow: ['warn', 'error', 'log'] }] },
   },
+  {
+    // Node scripts, not run through tsc, so `no-undef` doesn't get the
+    // TS-aware pass that covers the rest of the codebase's .ts files.
+    files: ['**/scripts/**/*.mjs'],
+    languageOptions: {
+      globals: { process: 'readonly', console: 'readonly', Buffer: 'readonly' },
+    },
+    rules: { 'no-console': ['warn', { allow: ['warn', 'error', 'log'] }] },
+  },
   prettier,
 );
