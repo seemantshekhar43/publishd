@@ -52,8 +52,8 @@ export interface ArticleFrontmatter {
   listed: boolean;
 }
 
-const TITLE_MAX_LENGTH = 200;
-const SUMMARY_MAX_LENGTH = 300;
+export const TITLE_MAX_LENGTH = 200;
+export const SUMMARY_MAX_LENGTH = 300;
 
 /**
  * Loose type/shape check only - every business rule (slug derivation,
@@ -187,18 +187,29 @@ function validateSlug(
   return value;
 }
 
+/**
+ * A YAML frontmatter parser (gray-matter/js-yaml) auto-casts an unquoted
+ * date like `date: 2026-09-20` into a native `Date`, not a string - and
+ * that unquoted form is the normal way to write one. Normalise it to
+ * YYYY-MM-DD before validating, rather than rejecting it.
+ */
+function normalizeDateLike(value: unknown): unknown {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : value;
+}
+
 function validateDate(value: unknown, issues: SchemaIssue[]): string | undefined {
   if (value === undefined) {
     return new Date().toISOString().slice(0, 10);
   }
-  if (typeof value !== 'string' || !isoDateSchema.safeParse(value).success) {
+  const normalized = normalizeDateLike(value);
+  if (typeof normalized !== 'string' || !isoDateSchema.safeParse(normalized).success) {
     issues.push({
       path: 'date',
       message: `expected an ISO date (YYYY-MM-DD), got ${describe(value)}`,
     });
     return undefined;
   }
-  return value;
+  return normalized;
 }
 
 function validateOptionalDate(
@@ -209,14 +220,15 @@ function validateOptionalDate(
   if (value === undefined) {
     return undefined;
   }
-  if (typeof value !== 'string' || !isoDateSchema.safeParse(value).success) {
+  const normalized = normalizeDateLike(value);
+  if (typeof normalized !== 'string' || !isoDateSchema.safeParse(normalized).success) {
     issues.push({
       path,
       message: `expected an ISO date (YYYY-MM-DD), got ${describe(value)}`,
     });
     return undefined;
   }
-  return value;
+  return normalized;
 }
 
 function validateStatus(
@@ -303,14 +315,18 @@ function validatePublishAt(value: unknown, issues: SchemaIssue[]): string | unde
   if (value === undefined) {
     return undefined;
   }
-  if (typeof value !== 'string' || !isoDateTimeSchema.safeParse(value).success) {
+  const normalized = value instanceof Date ? value.toISOString() : value;
+  if (
+    typeof normalized !== 'string' ||
+    !isoDateTimeSchema.safeParse(normalized).success
+  ) {
     issues.push({
       path: 'publishAt',
       message: `expected an ISO datetime (e.g. 2026-09-25T09:00:00Z), got ${describe(value)}`,
     });
     return undefined;
   }
-  return value;
+  return normalized;
 }
 
 function validateListed(value: unknown, issues: SchemaIssue[]): boolean | undefined {
