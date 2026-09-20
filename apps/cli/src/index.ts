@@ -8,7 +8,8 @@
  * Scaffold only. The real CLI lands with issue #7.
  */
 
-import { pathToFileURL } from 'node:url';
+import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 export const CLI_NAME = 'publishd';
 
@@ -22,9 +23,27 @@ export function main(argv: readonly string[] = []): number {
   return 1;
 }
 
+/**
+ * True when this module is the process entry point.
+ *
+ * Both sides are resolved through realpath because the bin is reached through
+ * a symlink - pnpm's shim, `npm link`, a global install - so `process.argv[1]`
+ * is the link while the module URL is the target.
+ */
+function isEntryPoint(moduleUrl: string): boolean {
+  const invokedPath = process.argv[1];
+  if (invokedPath === undefined) {
+    return false;
+  }
+  try {
+    return realpathSync(invokedPath) === realpathSync(fileURLToPath(moduleUrl));
+  } catch {
+    return false;
+  }
+}
+
 // Only take over the process when invoked as the `publishd` binary, so that
 // importing this module stays side-effect free.
-const invokedPath = process.argv[1];
-if (invokedPath !== undefined && import.meta.url === pathToFileURL(invokedPath).href) {
-  process.exit(main(process.argv.slice(2)));
+if (isEntryPoint(import.meta.url)) {
+  process.exitCode = main(process.argv.slice(2));
 }
