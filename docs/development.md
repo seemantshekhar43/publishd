@@ -90,8 +90,9 @@ docs(architecture): document the ingest failure modes
 chore(deps): bump astro to 5.2
 ```
 
-Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `perf`, `ci`.
-Scopes: `cli`, `web`, `ingest`, `schema`, `skill`, `deps`, `ci`, or a doc name.
+Types and scopes are enforced by commitlint; `commitlint.config.js` owns the exact lists. Types are the conventional set (`feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `perf`, `ci`, ...) plus `no-mistakes`. Scopes are the `area:` labels from §5, plus a doc name, plus the no-mistakes pipeline step names.
+
+`no-mistakes(<step>): ...` is reserved for the gate committing its own fix rounds. Do not write one by hand.
 
 Rules:
 
@@ -111,7 +112,7 @@ A change is done when **all** of these hold. Not most.
 - [ ] `lint`, `typecheck`, `test`, and `build` all pass locally
 - [ ] Docs updated in the same PR if behaviour changed - a doc that contradicts the code is a bug
 - [ ] No secret, token, or personal identifier added anywhere
-- [ ] No hardcoded `shekse.com`, personal name, or repo path in application code
+- [ ] No hardcoded `shekse.com`, personal name, or repo path in application code - CI greps `apps/` and `packages/` for these and fails the build
 - [ ] If a slug or route changed, `redirects.json` was updated
 - [ ] The no-mistakes gate passed
 - [ ] UI work: verified in a real browser in **both themes**, at desktop and 400px width
@@ -170,16 +171,19 @@ Every issue gets one `area:`, one `type:`, and one `priority:`.
 
 ## 7. Local setup
 
-Does not exist yet - it lands with the first M1 issue. Once it does, the expected shape is:
+Node `>=22` (see `.nvmrc`) and pnpm, pinned by `packageManager` in the root `package.json`.
 
 ```bash
 pnpm install
-pnpm dev          # site + ingest on localhost:4321
 pnpm test
-pnpm lint
+pnpm lint         # eslint with zero warnings tolerated, then prettier --check
+pnpm lint:fix
 pnpm typecheck
 pnpm build
+pnpm dev          # nothing to serve yet - the site lands with its own M1 issue
 ```
+
+The workspace packages (`apps/web`, `apps/cli`, `packages/schema`) are scaffolded stubs; their implementations land with the M1 issues that own them. `pnpm dev` runs whichever packages have declared a `dev` script, which is none of them yet.
 
 Publishing against a local instance uses the `local` profile in `~/.config/publishd/config.toml`, so the full loop is testable without touching production.
 

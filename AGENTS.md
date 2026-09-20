@@ -21,7 +21,7 @@ publishd ./my-note.md
 
 ## Current status
 
-**Pre-M1. No application code exists yet.** This repository currently contains documentation, the license, and the agent skill. The first code lands via the issues on the M1 milestone.
+**Pre-M1. No application code exists yet.** This repository currently contains documentation, the license, the agent skill, and the pnpm workspace scaffold - the shared toolchain plus empty package stubs under `apps/` and `packages/`. The first code lands via the issues on the M1 milestone.
 
 Do not assume any file, package, script, or command described in the docs exists yet. Check before you reference it. Where a doc describes something not yet built, it is a specification, not a description.
 

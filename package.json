@@ -1,0 +1,54 @@
+{
+  "name": "publishd-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Publish a markdown file to the web in under 10 seconds, from anywhere.",
+  "license": "MIT",
+  "author": "Seemant Shekhar",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seemantshekhar43/publishd.git"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.17.0",
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean && rm -rf apps/*/dist packages/*/dist",
+    "dev": "pnpm -r --parallel --if-present dev",
+    "format": "prettier --write .",
+    "lint": "eslint . --max-warnings=0 && prettier --check .",
+    "lint:fix": "eslint . --fix && prettier --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -b --pretty",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,cjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,yml,yaml,css}": [
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.2",
+    "@vitest/coverage-v8": "^5.0.1",
+    "conventional-changelog-conventionalcommits": "^10.4.0",
+    "eslint": "^10.11.0",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.5.1",
+    "prettier": "^3.9.8",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^5.0.1"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": false,
+    "types": ["node"],
+    "tsBuildInfoFile": "node_modules/.cache/tsconfig.tests.tsbuildinfo"
+  },
+  "include": [
+    "apps/*/src/**/*.test.ts",
+    "packages/*/src/**/*.test.ts",
+    "vitest.config.ts",
+    "eslint.config.js",
+    "commitlint.config.js"
+  ],
+  "references": [
+    { "path": "packages/schema" },
+    { "path": "apps/cli" },
+    { "path": "apps/web" }
+  ]
+}
