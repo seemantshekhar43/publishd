@@ -10,6 +10,7 @@
   "include": [
     "apps/*/src/**/*.test.ts",
     "apps/web/src/lib/**/*.ts",
+    "e2e/**/*.ts",
     "apps/web/src/pages/api/**/*.ts",
     "packages/*/src/**/*.test.ts",
     "site.config.ts",

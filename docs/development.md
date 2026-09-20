@@ -187,6 +187,21 @@ pnpm dev          # runs the Astro dev server for apps/web
 
 Publishing against a local instance uses the `local` profile in `~/.config/publishd/config.toml`, so the full loop is testable without touching production.
 
+### M1 exit smoke test
+
+`pnpm test:e2e` publishes a real fixture through the built CLI against **staging** (never production) and asserts the exit criterion: a working public URL, a commit in the content repo's `staging` branch, and a full publish-to-live time under 60 seconds. It cleans up its own fixture afterward.
+
+Requires three env vars, none of which live in this repo:
+
+```bash
+PUBLISHD_ENDPOINT=https://<staging deployment URL>
+PUBLISHD_TOKEN=<a valid client token>
+GITHUB_TOKEN=<a token with contents:write on the content repo>
+pnpm test:e2e
+```
+
+Not part of `pnpm test` or per-PR CI - it needs real network access and staging credentials. See issue #10.
+
 ---
 
 ## 8. Security practices
