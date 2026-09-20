@@ -52,8 +52,8 @@ export interface ArticleFrontmatter {
   listed: boolean;
 }
 
-export const TITLE_MAX_LENGTH = 200;
-export const SUMMARY_MAX_LENGTH = 300;
+const TITLE_MAX_LENGTH = 200;
+const SUMMARY_MAX_LENGTH = 300;
 
 /**
  * Loose type/shape check only - every business rule (slug derivation,

@@ -33,5 +33,9 @@ export default tseslint.config(
     files: ['**/*.test.ts'],
     rules: { 'no-console': 'off' },
   },
+  {
+    files: ['apps/web/src/pages/api/ingest.ts'],
+    rules: { 'no-console': ['warn', { allow: ['warn', 'error', 'log'] }] },
+  },
   prettier,
 );

@@ -6,6 +6,21 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "tsc -b"
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "typecheck": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/vercel": "8.2.9",
+    "@octokit/rest": "22.0.1",
+    "astro": "5.18.2",
+    "gray-matter": "4.0.3",
+    "publishd-schema": "workspace:*",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "typescript": "^6.0.3"
   }
 }

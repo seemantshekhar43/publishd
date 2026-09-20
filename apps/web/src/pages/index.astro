@@ -1,0 +1,37 @@
+---
+// Deliberately unstyled - M1 proves the pipeline, not the design. See
+// docs/roadmap.md ("resist styling it") and issue #8.
+import { getCollection } from 'astro:content';
+
+// postsLoader() only ever stores published posts - see
+// apps/web/src/content/posts-loader.ts. listed: false still gets a page,
+// just not a row here.
+const listedPosts = await getCollection('posts', ({ data }) => data.listed);
+const posts = listedPosts.sort((a, b) => b.data.date.localeCompare(a.data.date));
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>publishd</title>
+  </head>
+  <body>
+    <main>
+      <h1>publishd</h1>
+      {
+        posts.length === 0 ? (
+          <p>Nothing published yet.</p>
+        ) : (
+          <ul>
+            {posts.map((post) => (
+              <li>
+                <a href={`/${post.data.slug}`}>{post.data.title}</a> - {post.data.date}
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </main>
+  </body>
+</html>
