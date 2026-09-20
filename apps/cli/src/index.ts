@@ -86,6 +86,7 @@ export const command = defineCommand({
         fetchImpl: fetch,
         endpoint,
         token,
+        protectionBypass: process.env.PUBLISHD_PROTECTION_BYPASS,
         log: consola,
         pollUntilLive,
         openUrl,

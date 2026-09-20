@@ -12,6 +12,7 @@ import {
   type ContentStatus,
   type ContentType,
 } from 'publishd-schema';
+import type { PollOptions } from './poll.js';
 
 export interface PublishOptions {
   filePath: string;
@@ -36,8 +37,19 @@ export interface PublishDeps {
   endpoint: string;
   /** Never logged or echoed to stdout/stderr - see docs/PRD.md section 8.4. */
   token: string;
+  /**
+   * Vercel's "Protection Bypass for Automation" secret - only needed when
+   * the target deployment has Deployment Protection enabled, e.g. a staging
+   * preview. See issue #42.
+   */
+  protectionBypass?: string | undefined;
   log: Logger;
-  pollUntilLive(url: string, fetchImpl: typeof fetch): Promise<void>;
+  pollUntilLive(
+    url: string,
+    fetchImpl: typeof fetch,
+    options?: PollOptions,
+    headers?: Record<string, string>,
+  ): Promise<void>;
   openUrl(url: string): void;
 }
 
@@ -103,11 +115,16 @@ export async function runPublish(
     return 0;
   }
 
+  const bypassHeaders: Record<string, string> = deps.protectionBypass
+    ? { 'x-vercel-protection-bypass': deps.protectionBypass }
+    : {};
+
   const response = await deps.fetchImpl(`${deps.endpoint}/api/ingest`, {
     method: 'POST',
     headers: {
       authorization: `Bearer ${deps.token}`,
       'content-type': 'application/json',
+      ...bypassHeaders,
     },
     body: JSON.stringify({ kind: 'article', frontmatter, body: content }),
   });
@@ -123,7 +140,7 @@ export async function runPublish(
   const result = (await response.json()) as IngestResponseBody;
   deps.log.info(result.url);
 
-  await deps.pollUntilLive(result.url, deps.fetchImpl);
+  await deps.pollUntilLive(result.url, deps.fetchImpl, undefined, bypassHeaders);
   deps.log.info('live');
 
   if (options.open) {
