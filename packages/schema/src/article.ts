@@ -153,7 +153,18 @@ function validateSlug(
   issues: SchemaIssue[],
 ): string | undefined {
   if (value === undefined) {
-    return title === undefined ? undefined : deriveSlug(title);
+    if (title === undefined) {
+      return undefined;
+    }
+    const derived = deriveSlug(title);
+    if (!hasValidSlugShape(derived)) {
+      issues.push({
+        path: 'slug',
+        message: `title "${title}" does not derive to a valid slug; provide an explicit slug`,
+      });
+      return undefined;
+    }
+    return derived;
   }
   if (typeof value !== 'string') {
     issues.push({ path: 'slug', message: 'expected a string, got ' + describe(value) });
