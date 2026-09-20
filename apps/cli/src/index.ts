@@ -2,25 +2,106 @@
 /**
  * The publishd CLI.
  *
- * Publishing is the default action, so `publishd note.md` is the whole command.
- * Full surface in docs/PRD.md section 8.4.
- *
- * Scaffold only. The real CLI lands with issue #7.
+ * Publishing is the default action, so `publishd note.md` is the whole
+ * command. Full surface in docs/PRD.md section 8.4.
  */
 
 import { realpathSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { defineCommand, runMain } from 'citty';
+import consola from 'consola';
+import { loadConfig, resolveProfile } from './config.js';
+import { openUrl } from './open.js';
+import { pollUntilLive } from './poll.js';
+import { runPublish } from './publish.js';
 
 export const CLI_NAME = 'publishd';
+export const CLI_VERSION = '0.0.0';
 
-/** Placeholder entry point so the package is wired end to end. */
-export function main(argv: readonly string[] = []): number {
-  if (argv.includes('--version')) {
-    process.stdout.write('0.0.0\n');
-    return 0;
+export const command = defineCommand({
+  meta: {
+    name: CLI_NAME,
+    version: CLI_VERSION,
+    description: 'Publish a markdown file to the web in under 10 seconds, from anywhere.',
+  },
+  args: {
+    file: {
+      type: 'positional',
+      description: 'Markdown file to publish, or - to read from stdin',
+      required: true,
+    },
+    status: { type: 'string', description: 'draft or published' },
+    profile: {
+      type: 'string',
+      description: 'Named profile from ~/.config/publishd/config.toml',
+    },
+    kind: {
+      type: 'string',
+      description: 'article (only supported kind for now)',
+      default: 'article',
+    },
+    tags: { type: 'string', description: 'Comma-separated tags, overrides frontmatter' },
+    type: { type: 'string', description: 'post, note, til, or doc' },
+    'dry-run': {
+      type: 'boolean',
+      description: 'Print resolved frontmatter and the diff, send nothing',
+      default: false,
+    },
+    open: {
+      type: 'boolean',
+      description: 'Open the URL when the build goes live',
+      default: false,
+    },
+  },
+  async run({ args }) {
+    const config = await loadConfig();
+
+    // A profile is required to actually publish, but --dry-run validates
+    // and prints locally without one - see issue #7 acceptance criteria.
+    let endpoint = '<no profile configured>';
+    let token = '';
+    try {
+      ({ endpoint, token } = resolveProfile(config, args.profile, process.env));
+    } catch (error) {
+      if (!args['dry-run']) {
+        throw error;
+      }
+    }
+
+    const exitCode = await runPublish(
+      {
+        filePath: args.file,
+        status: args.status,
+        profile: args.profile,
+        kind: args.kind,
+        tags: args.tags,
+        type: args.type,
+        dryRun: args['dry-run'],
+        open: args.open,
+      },
+      {
+        readStdin: readStdinToString,
+        readFileContent: (path) => readFile(path, 'utf-8'),
+        fetchImpl: fetch,
+        endpoint,
+        token,
+        log: consola,
+        pollUntilLive,
+        openUrl,
+      },
+    );
+
+    process.exitCode = exitCode;
+  },
+});
+
+async function readStdinToString(): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(chunk as Buffer);
   }
-  process.stderr.write(`${CLI_NAME}: not implemented yet - see issue #7\n`);
-  return 1;
+  return Buffer.concat(chunks).toString('utf-8');
 }
 
 /**
@@ -45,5 +126,5 @@ function isEntryPoint(moduleUrl: string): boolean {
 // Only take over the process when invoked as the `publishd` binary, so that
 // importing this module stays side-effect free.
 if (isEntryPoint(import.meta.url)) {
-  process.exitCode = main(process.argv.slice(2));
+  await runMain(command);
 }
