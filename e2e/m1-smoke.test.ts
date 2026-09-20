@@ -96,35 +96,43 @@ describe('M1 exit: end-to-end smoke test', () => {
       `publish took longer than the ${PUBLISH_BUDGET_MS}ms budget`,
     ).toBeLessThan(PUBLISH_BUDGET_MS);
 
+    let commitData:
+      Awaited<ReturnType<typeof octokit.repos.getContent>>['data'] | undefined;
     try {
+      commitData = (
+        await octokit.repos.getContent({
+          owner,
+          repo,
+          ref: CONTENT_BRANCH,
+          path: contentPath,
+        })
+      ).data;
+
       const response = await fetch(url);
       expect(response.status).toBe(200);
       const body = await response.text();
       expect(body).toContain(title);
 
-      const { data } = await octokit.repos.getContent({
-        owner,
-        repo,
-        ref: CONTENT_BRANCH,
-        path: contentPath,
-      });
-      expect(Array.isArray(data), `no commit found at ${contentPath}`).toBe(false);
-
-      if (!Array.isArray(data) && data.type === 'file') {
-        await octokit.repos.deleteFile({
-          owner,
-          repo,
-          branch: CONTENT_BRANCH,
-          path: contentPath,
-          message: `chore: remove m1 smoke test fixture ${slug}`,
-          sha: data.sha,
-        });
+      expect(Array.isArray(commitData), `no commit found at ${contentPath}`).toBe(false);
+    } finally {
+      // Always attempt cleanup, even when an assertion above threw, so a
+      // failing run doesn't leave the fixture behind for the next one.
+      if (commitData && !Array.isArray(commitData) && commitData.type === 'file') {
+        await octokit.repos
+          .deleteFile({
+            owner,
+            repo,
+            branch: CONTENT_BRANCH,
+            path: contentPath,
+            message: `chore: remove m1 smoke test fixture ${slug}`,
+            sha: commitData.sha,
+          })
+          .catch(() => {
+            console.error(
+              `[m1-smoke] fixture ${contentPath} on branch ${CONTENT_BRANCH} needs manual cleanup`,
+            );
+          });
       }
-    } catch (error) {
-      console.error(
-        `[m1-smoke] fixture ${contentPath} on branch ${CONTENT_BRANCH} may need manual cleanup`,
-      );
-      throw error;
     }
   });
 });
