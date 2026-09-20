@@ -89,6 +89,7 @@ When `slug` is absent, derive from `title`: lowercase, strip accents, replace an
 - Pattern: `^[a-z0-9]+(?:-[a-z0-9]+)*$`
 - Length 1-80
 - Must be unique across the whole content repo, not just within a folder
+- If `title` has no alphanumeric characters, derivation produces an empty slug, which is rejected: the author must provide an explicit `slug`
 
 ### Reserved slugs
 
