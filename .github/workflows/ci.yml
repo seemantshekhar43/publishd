@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  identity:
+    name: no hardcoded identity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Deployment-specific identity belongs in site.config.ts, never in source.
+      # See docs/architecture.md section 8 and issue #3.
+      - name: Check for hardcoded identity in source
+        run: |
+          if grep -rniE 'shekse\.com|seemantshekhar43|shekse-publish-content' \
+               apps packages 2>/dev/null \
+             | grep -vE '\.test\.ts:|issues/[0-9]+'; then
+            echo "::error::Hardcoded deployment identity found in apps/ or packages/."
+            echo "Move it to site.config.ts - see docs/architecture.md section 8."
+            exit 1
+          fi
+          echo "No hardcoded identity found."

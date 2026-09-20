@@ -1,0 +1,22 @@
+{
+  "name": "publishd-schema",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The single definition of what a publishd content file is. Imported by the CLI, the ingest endpoint, and the site build.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

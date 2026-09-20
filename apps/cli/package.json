@@ -1,0 +1,22 @@
+{
+  "name": "publishd",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Publish a markdown file to the web in under 10 seconds, from anywhere.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "publishd": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2"
+  }
+}

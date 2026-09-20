@@ -31,14 +31,14 @@ Do not assume any file, package, script, or command described in the docs exists
 
 Read the one that matches your task. Do not read all of them by default.
 
-| Doc | Read it when |
-| --- | --- |
-| [`docs/PRD.md`](docs/PRD.md) | You need the *why* behind a decision, or the full product scope. Contains the decision log. |
-| [`docs/architecture.md`](docs/architecture.md) | You are touching the ingest endpoint, the build pipeline, repo boundaries, or auth. |
+| Doc                                                | Read it when                                                                                      |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [`docs/PRD.md`](docs/PRD.md)                       | You need the _why_ behind a decision, or the full product scope. Contains the decision log.       |
+| [`docs/architecture.md`](docs/architecture.md)     | You are touching the ingest endpoint, the build pipeline, repo boundaries, or auth.               |
 | [`docs/content-schema.md`](docs/content-schema.md) | You are touching frontmatter, validation, slugs, or Obsidian normalisation. The precise contract. |
-| [`docs/design.md`](docs/design.md) | You are writing UI, CSS, an HTML artifact, or *any* content file. Also the content style guide. |
-| [`docs/development.md`](docs/development.md) | You are about to open an issue, branch, PR, or merge. The workflow is mandatory. |
-| [`docs/roadmap.md`](docs/roadmap.md) | You need to know what milestone something belongs to, or what is deliberately deferred. |
+| [`docs/design.md`](docs/design.md)                 | You are writing UI, CSS, an HTML artifact, or _any_ content file. Also the content style guide.   |
+| [`docs/development.md`](docs/development.md)       | You are about to open an issue, branch, PR, or merge. The workflow is mandatory.                  |
+| [`docs/roadmap.md`](docs/roadmap.md)               | You need to know what milestone something belongs to, or what is deliberately deferred.           |
 
 `docs/PRD.md` is the source of truth for product decisions. If another doc contradicts it, the PRD wins and the other doc is a bug - fix it in the same PR.
 
@@ -54,7 +54,7 @@ inkloop (plan)  ->  GitHub issue  ->  branch  ->  code  ->  PR
                               merge (closes issue)  <-  no-mistakes gate
 ```
 
-1. **Plan in inkloop.** Anything non-trivial gets an HTML artifact under `.inkloop/` and a review round before code. This is how we decide what to do next. `.inkloop/` is gitignored - the artifact is scratch, its *outcome* lands in an issue and in `docs/`.
+1. **Plan in inkloop.** Anything non-trivial gets an HTML artifact under `.inkloop/` and a review round before code. This is how we decide what to do next. `.inkloop/` is gitignored - the artifact is scratch, its _outcome_ lands in an issue and in `docs/`.
 2. **Open an issue** with `gh-axi`. Every change has one. The issue states what to achieve and how we will know it is done.
 3. **Branch** from `main`. Short-lived, one issue per branch.
 4. **Code**, following the docs above.
@@ -70,12 +70,12 @@ See [`docs/development.md`](docs/development.md) for the full detail, including 
 
 Use these rather than generic alternatives.
 
-| Task | Tool |
-| --- | --- |
-| Anything on GitHub - issues, PRs, CI runs, labels, releases, API | `npx -y gh-axi <command>` |
-| Planning, brainstorming, anything better reviewed visually | `npx -y inkloop <file.html>` |
-| Validating changes before they reach `main` | the `no-mistakes` skill |
-| Driving a real browser to verify UI | `npx -y chrome-devtools-axi` |
+| Task                                                             | Tool                         |
+| ---------------------------------------------------------------- | ---------------------------- |
+| Anything on GitHub - issues, PRs, CI runs, labels, releases, API | `npx -y gh-axi <command>`    |
+| Planning, brainstorming, anything better reviewed visually       | `npx -y inkloop <file.html>` |
+| Validating changes before they reach `main`                      | the `no-mistakes` skill      |
+| Driving a real browser to verify UI                              | `npx -y chrome-devtools-axi` |
 
 ---
 
