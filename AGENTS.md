@@ -21,9 +21,9 @@ publishd ./my-note.md
 
 ## Current status
 
-**Pre-M1. No application code exists yet.** This repository currently contains documentation, the license, the agent skill, and the pnpm workspace scaffold - the shared toolchain plus empty package stubs under `apps/` and `packages/`. The first code lands via the issues on the M1 milestone.
+**M1 in progress, not yet deployed.** `packages/schema` (the frontmatter contract), `apps/web` (the Astro site skeleton and the `/api/ingest` endpoint), and `apps/cli` (the `publishd` binary) all exist and are tested. What is still missing: the private content repo (issue #5) and the live Vercel/DNS/1Password deployment (issue #9), so there is no `publish.shekse.com` yet and the pipeline has not been proven end to end (issue #10).
 
-Do not assume any file, package, script, or command described in the docs exists yet. Check before you reference it. Where a doc describes something not yet built, it is a specification, not a description.
+Do not assume any file, package, script, or command described in the docs exists yet without checking - large parts of M2 onward are still specification, not description.
 
 ---
 
