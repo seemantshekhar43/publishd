@@ -1,0 +1,37 @@
+---
+// Deliberately unstyled - see docs/roadmap.md and issue #8.
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+
+export async function getStaticPaths() {
+  // postsLoader() only ever stores published posts - see
+  // apps/web/src/content/posts-loader.ts.
+  const posts = await getCollection('posts');
+  return posts.map((post) => ({
+    params: { slug: post.data.slug },
+    props: { post },
+  }));
+}
+
+interface Props {
+  post: CollectionEntry<'posts'>;
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{post.data.title}</title>
+  </head>
+  <body>
+    <main>
+      <a href="/">← home</a>
+      <h1>{post.data.title}</h1>
+      <p>{post.data.date}</p>
+      <Content />
+    </main>
+  </body>
+</html>

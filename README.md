@@ -11,13 +11,13 @@ Not a CMS. There is no admin UI and no database. Your editor stays whatever it a
 
 ---
 
-> ## 🚧 Status: pre-M1, not usable yet
+> ## 🚧 Status: M1 in progress, not deployed yet
 >
-> This repository currently contains documentation and the project skeleton. **No application code exists yet.** Nothing described below works today.
+> The schema, the site skeleton, the ingest endpoint, and the `publishd` CLI exist and are tested, but there is no live deployment - the private content repo and the Vercel/DNS setup (issues #5 and #9) haven't landed, so `publishd ./my-note.md` doesn't have anywhere to publish to yet.
 >
 > It is public from the first commit because building in the open keeps the configuration honest - not because it is ready. Follow the [M1 milestone](../../milestones) to see the walking skeleton come together.
 >
-> Docs describing the CLI, the endpoint, or the site are **specifications, not descriptions**.
+> Docs describing behavior beyond what is implemented so far are **specifications, not descriptions**.
 
 ---
 

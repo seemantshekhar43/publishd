@@ -18,5 +18,12 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.2"
+  },
+  "dependencies": {
+    "citty": "0.2.2",
+    "consola": "3.4.2",
+    "gray-matter": "4.0.3",
+    "publishd-schema": "workspace:*",
+    "smol-toml": "1.8.0"
   }
 }

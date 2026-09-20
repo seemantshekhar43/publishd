@@ -23,6 +23,18 @@ describe('parseArticleFrontmatter - defaults', () => {
     expect(() => parseArticleFrontmatter({})).toThrow(SchemaValidationError);
   });
 
+  it('accepts a native Date for date/updated/publishAt, as a YAML parser produces for unquoted values', () => {
+    const result = parseArticleFrontmatter({
+      title: 'Hello world',
+      date: new Date('2026-09-20T00:00:00.000Z'),
+      updated: new Date('2026-09-21T00:00:00.000Z'),
+      publishAt: new Date('2026-09-25T09:00:00.000Z'),
+    });
+    expect(result.date).toBe('2026-09-20');
+    expect(result.updated).toBe('2026-09-21');
+    expect(result.publishAt).toBe('2026-09-25T09:00:00.000Z');
+  });
+
   it('preserves every explicitly provided field', () => {
     const result = parseArticleFrontmatter({
       title: 'Running Kubernetes on a Beelink cluster',

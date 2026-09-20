@@ -9,7 +9,10 @@
   },
   "include": [
     "apps/*/src/**/*.test.ts",
+    "apps/web/src/lib/**/*.ts",
+    "apps/web/src/pages/api/**/*.ts",
     "packages/*/src/**/*.test.ts",
+    "site.config.ts",
     "vitest.config.ts",
     "eslint.config.js",
     "commitlint.config.js"
@@ -17,6 +20,6 @@
   "references": [
     { "path": "packages/schema" },
     { "path": "apps/cli" },
-    { "path": "apps/web" }
+    { "path": "tsconfig.site-config.json" }
   ]
 }
