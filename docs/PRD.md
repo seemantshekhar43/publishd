@@ -632,6 +632,8 @@ Only on success does it fire the Vercel deploy hook. **This is why a bad publish
 | E2E | Playwright: publish a fixture to staging, assert page renders and appears in RSS and search. | Nightly |
 | Visual | Screenshot diffs on homepage and article in both themes. On a design-led site these are the regressions that matter. | Per PR |
 
+The E2E row above is the post-search (M4) target. Until then, `pnpm test:e2e` covers only the M1 exit criterion (working URL, real content-repo commit, publish time budget) - see docs/development.md.
+
 ### Environments
 
 | Env | Site | Content branch |
