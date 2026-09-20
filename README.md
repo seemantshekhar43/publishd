@@ -43,14 +43,14 @@ A small serverless endpoint validates your markdown and commits it to a git repo
 
 ## Documentation
 
-| Doc                                      | What is in it                                        |
-| ---------------------------------------- | ---------------------------------------------------- |
-| [Product requirements](docs/PRD.md)      | Full scope, every decision and why, the decision log |
-| [Architecture](docs/architecture.md)     | System design, ingest contract, auth, failure modes  |
-| [Content schema](docs/content-schema.md) | Frontmatter contract, slugs, Obsidian normalisation  |
-| [Design](docs/design.md)                 | Visual system and content style guide                |
-| [Development](docs/development.md)       | Workflow, conventions, security practices            |
-| [Roadmap](docs/roadmap.md)               | Milestones and what is deliberately deferred         |
+| Doc | What is in it |
+| --- | --- |
+| [Product requirements](docs/PRD.md) | Full scope, every decision and why, the decision log |
+| [Architecture](docs/architecture.md) | System design, ingest contract, auth, failure modes |
+| [Content schema](docs/content-schema.md) | Frontmatter contract, slugs, Obsidian normalisation |
+| [Design](docs/design.md) | Visual system and content style guide |
+| [Development](docs/development.md) | Workflow, conventions, security practices |
+| [Roadmap](docs/roadmap.md) | Milestones and what is deliberately deferred |
 
 Working on this with a coding agent? Start at [`AGENTS.md`](AGENTS.md).
 

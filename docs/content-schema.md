@@ -10,31 +10,31 @@ If you are changing anything about frontmatter, slugs, or Obsidian syntax, this 
 
 ```yaml
 ---
-title: 'Running Kubernetes on a Beelink cluster'
+title: "Running Kubernetes on a Beelink cluster"
 slug: k8s-beelink-cluster
 date: 2026-09-20
 status: published
 type: post
 tags: [homelab, kubernetes]
-summary: 'Three mini PCs, one control plane, and every mistake I made getting there.'
+summary: "Three mini PCs, one control plane, and every mistake I made getting there."
 canonical: https://example.com/original
 publishAt: 2026-09-25T09:00:00Z
 ---
 ```
 
-| Field       | Type                                 | Required | Default               | Notes                                                 |
-| ----------- | ------------------------------------ | -------- | --------------------- | ----------------------------------------------------- |
-| `title`     | string, 1-200                        | **yes**  | -                     | The only required field                               |
-| `slug`      | slug string                          | no       | derived from `title`  | Immutable once published. See §3.                     |
-| `date`      | ISO date                             | no       | now, at first publish | Never changes on update                               |
-| `updated`   | ISO date                             | no       | set on every update   | Written by the pipeline, not the author               |
-| `status`    | `draft` \| `published` \| `archived` | no       | `draft`               | See §4                                                |
-| `type`      | `post` \| `note` \| `til` \| `doc`   | no       | `post`                | Drives layout, not taxonomy                           |
-| `tags`      | string[]                             | no       | `[]`                  | Flat. No hierarchy, no parent tags.                   |
-| `summary`   | string, max 300                      | no       | -                     | Used in OG image, RSS, and hover on the index         |
-| `canonical` | URL                                  | no       | -                     | Points search engines at the original if cross-posted |
-| `publishAt` | ISO datetime                         | no       | -                     | Future value holds the post back. See §5.             |
-| `listed`    | boolean                              | no       | `true`                | `false` keeps it out of the feed but still published  |
+| Field | Type | Required | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `title` | string, 1-200 | **yes** | - | The only required field |
+| `slug` | slug string | no | derived from `title` | Immutable once published. See §3. |
+| `date` | ISO date | no | now, at first publish | Never changes on update |
+| `updated` | ISO date | no | set on every update | Written by the pipeline, not the author |
+| `status` | `draft` \| `published` \| `archived` | no | `draft` | See §4 |
+| `type` | `post` \| `note` \| `til` \| `doc` | no | `post` | Drives layout, not taxonomy |
+| `tags` | string[] | no | `[]` | Flat. No hierarchy, no parent tags. |
+| `summary` | string, max 300 | no | - | Used in OG image, RSS, and hover on the index |
+| `canonical` | URL | no | - | Points search engines at the original if cross-posted |
+| `publishAt` | ISO datetime | no | - | Future value holds the post back. See §5. |
+| `listed` | boolean | no | `true` | `false` keeps it out of the feed but still published |
 
 **Only `title` is required.** This matters: a note dragged out of Obsidian with a one-line frontmatter block must just work. Every other field has a defensible default.
 
@@ -42,12 +42,12 @@ publishAt: 2026-09-25T09:00:00Z
 
 `type` drives **layout**, not categorisation. Tags do categorisation.
 
-| Value  | Layout behaviour                                                                                                         |
-| ------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `post` | Full article. Gets an OG image, appears in RSS and the main feed.                                                        |
-| `note` | Short-form. No hero, no OG image generation, still indexed and listed.                                                   |
-| `til`  | "Today I learned". Timestamp-prominent, denser layout.                                                                   |
-| `doc`  | Evergreen reference. Shows "last updated" rather than a published date, and is **excluded from the chronological feed**. |
+| Value | Layout behaviour |
+| --- | --- |
+| `post` | Full article. Gets an OG image, appears in RSS and the main feed. |
+| `note` | Short-form. No hero, no OG image generation, still indexed and listed. |
+| `til` | "Today I learned". Timestamp-prominent, denser layout. |
+| `doc` | Evergreen reference. Shows "last updated" rather than a published date, and is **excluded from the chronological feed**. |
 
 Adding a fifth value is a schema change with layout work attached. Do not add one casually.
 
@@ -59,15 +59,12 @@ An HTML `page` cannot carry YAML frontmatter, so metadata comes from `<meta>` ta
 
 ```html
 <title>PRD - publish.shekse.com</title>
-<meta name="shekse:slug" content="prd-publishd" />
-<meta name="shekse:type" content="doc" />
-<meta
-  name="shekse:summary"
-  content="Product requirements, settled over four review rounds."
-/>
-<meta name="shekse:tags" content="publishd, planning" />
-<meta name="shekse:status" content="published" />
-<meta name="shekse:listed" content="true" />
+<meta name="shekse:slug"    content="prd-publishd">
+<meta name="shekse:type"    content="doc">
+<meta name="shekse:summary" content="Product requirements, settled over four review rounds.">
+<meta name="shekse:tags"    content="publishd, planning">
+<meta name="shekse:status"  content="published">
+<meta name="shekse:listed"  content="true">
 ```
 
 Resolution order for every field: `<meta name="shekse:*">` -> CLI flag -> `<title>` (for `title` only) -> default.
@@ -120,11 +117,11 @@ draft  ->  published  ->  archived
   +-----------+   (can go back)
 ```
 
-| Status      | URL                            | In feed / RSS / search      | Robots              |
-| ----------- | ------------------------------ | --------------------------- | ------------------- |
-| `draft`     | `/preview/<uuid>`              | No                          | `noindex, nofollow` |
-| `published` | `/<slug>`                      | Yes, unless `listed: false` | Indexed             |
-| `archived`  | `/<slug>` returns **410 Gone** | No                          | -                   |
+| Status | URL | In feed / RSS / search | Robots |
+| --- | --- | --- | --- |
+| `draft` | `/preview/<uuid>` | No | `noindex, nofollow` |
+| `published` | `/<slug>` | Yes, unless `listed: false` | Indexed |
+| `archived` | `/<slug>` returns **410 Gone** | No | - |
 
 The preview UUID is stable per slug, so re-publishing a draft keeps the same shareable link. It is random and unguessable, not derived from the slug.
 
@@ -146,17 +143,17 @@ The preview UUID is stable per slug, so re-publishing a draft keeps the same sha
 
 Obsidian-flavoured markdown is **normalised on ingest, never rejected**. Unknown syntax degrades to plain text; it must never produce a broken page.
 
-| Input                            | Output                                                                      |
-| -------------------------------- | --------------------------------------------------------------------------- |
-| `![[image.png]]`                 | Resolved against the vault root, uploaded, rewritten to a real URL          |
-| `![[image.png\|300]]`            | As above, width hint preserved                                              |
-| `[[Some Other Note]]`            | A link if that note is published; **plain text if not**. Never a dead link. |
-| `[[Some Note\|display text]]`    | As above, using the display text                                            |
-| `#tag` inline                    | Merged into frontmatter `tags`, removed from the body                       |
-| `> [!note]`, `> [!warning]` etc. | Styled admonition components                                                |
-| `%%comment%%`                    | Stripped                                                                    |
-| ` ```dataview ` blocks           | Stripped, with a CLI warning naming the file                                |
-| ` ```templater ` / `<%% %%>`     | Stripped, with a CLI warning                                                |
+| Input | Output |
+| --- | --- |
+| `![[image.png]]` | Resolved against the vault root, uploaded, rewritten to a real URL |
+| `![[image.png\|300]]` | As above, width hint preserved |
+| `[[Some Other Note]]` | A link if that note is published; **plain text if not**. Never a dead link. |
+| `[[Some Note\|display text]]` | As above, using the display text |
+| `#tag` inline | Merged into frontmatter `tags`, removed from the body |
+| `> [!note]`, `> [!warning]` etc. | Styled admonition components |
+| `%%comment%%` | Stripped |
+| ` ```dataview ` blocks | Stripped, with a CLI warning naming the file |
+| ` ```templater ` / `<%% %%>` | Stripped, with a CLI warning |
 
 ### Vault root resolution
 

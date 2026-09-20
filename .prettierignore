@@ -1,6 +1,12 @@
 dist/
 node_modules/
 pnpm-lock.yaml
+coverage/
 .inkloop/
 .astro/
 .vercel/
+
+# Markdown is authored by hand and reviewed as prose. Prettier rewrites
+# documented literals inside fenced examples (hex case, quote style), which
+# corrupts docs that implementation issues are written against.
+*.md

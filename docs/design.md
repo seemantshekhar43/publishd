@@ -14,14 +14,14 @@ The design was chosen over three alternatives in a review round. It is all-sans 
 
 ### References worth studying
 
-| Source             | What to take                                                                       |
-| ------------------ | ---------------------------------------------------------------------------------- |
-| paco.me            | The homepage list pattern; hierarchy built from weight and colour rather than size |
-| rauno.me           | Interaction polish, especially the command palette and hover states                |
-| maggieappleton.com | Surfacing a content `type` without a category tree                                 |
-| Linear changelog   | The year-grouped chronological list                                                |
-| Stripe docs        | Code block treatment and inline code density                                       |
-| Are.na             | The discipline of a two-colour palette                                             |
+| Source | What to take |
+| --- | --- |
+| paco.me | The homepage list pattern; hierarchy built from weight and colour rather than size |
+| rauno.me | Interaction polish, especially the command palette and hover states |
+| maggieappleton.com | Surfacing a content `type` without a category tree |
+| Linear changelog | The year-grouped chronological list |
+| Stripe docs | Code block treatment and inline code density |
+| Are.na | The discipline of a two-colour palette |
 
 ### Anti-patterns - do not ship these
 
@@ -41,31 +41,27 @@ Defined once as CSS custom properties. **Every colour in the codebase is a token
 
 ```css
 :root {
-  --bg: #fdfbf7; /* warm paper, not white */
-  --surface: #f5f1e8;
-  --text: #14120f;
-  --mute: #6e665a;
-  --border: #e6dfd1;
-  --accent: #a8480b; /* links, focus rings, command palette. Used sparingly. */
+  --bg:      #FDFBF7;   /* warm paper, not white */
+  --surface: #F5F1E8;
+  --text:    #14120F;
+  --mute:    #6E665A;
+  --border:  #E6DFD1;
+  --accent:  #A8480B;   /* links, focus rings, command palette. Used sparingly. */
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --bg: #0f0e0c;
-    --surface: #1a1815;
-    --text: #ede8df;
-    --mute: #948b7c;
-    --border: #2a2621;
-    --accent: #e3944a;
+  :root:not([data-theme="light"]) {
+    --bg:      #0F0E0C;
+    --surface: #1A1815;
+    --text:    #EDE8DF;
+    --mute:    #948B7C;
+    --border:  #2A2621;
+    --accent:  #E3944A;
   }
 }
 
-:root[data-theme='dark'] {
-  /* same dark values, so an explicit toggle wins */
-}
-:root[data-theme='light'] {
-  /* same light values */
-}
+:root[data-theme="dark"] { /* same dark values, so an explicit toggle wins */ }
+:root[data-theme="light"] { /* same light values */ }
 ```
 
 The `:not([data-theme="light"])` guard on the media query is required. Without it, an explicit light choice loses to a dark OS preference.
@@ -78,12 +74,12 @@ Two neutrals plus one accent. No secondary accent. No semantic colour scale beyo
 
 ## 3. Typography - pairing "docs"
 
-| Role            | Face           | Size           | Weight              |
-| --------------- | -------------- | -------------- | ------------------- |
-| Article body    | Inter          | 17px / 1.68    | 400                 |
-| Headings        | Inter Tight    | 32 / 24 / 19px | 600, tight tracking |
-| UI, meta, dates | Inter          | 14px           | 450                 |
-| Code            | JetBrains Mono | 14px           | 400                 |
+| Role | Face | Size | Weight |
+| --- | --- | --- | --- |
+| Article body | Inter | 17px / 1.68 | 400 |
+| Headings | Inter Tight | 32 / 24 / 19px | 600, tight tracking |
+| UI, meta, dates | Inter | 14px | 450 |
+| Code | JetBrains Mono | 14px | 400 |
 
 Body is 17px rather than 19px because Inter runs optically larger than a serif at the same size. Do not raise it back.
 
@@ -103,16 +99,16 @@ Give every face a real fallback stack. Never leave text on the browser serif def
 
 ## 5. Component rules
 
-| Component         | Rule                                                                                                                               |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Headings          | Anchor link (`#`) appears on hover, in the left margin                                                                             |
-| Code blocks       | Shiki, themed from the site's own CSS variables so highlighting flips with the theme. Never a stock Dracula. Copy button on hover. |
-| Footnotes         | Margin sidenotes above 1100px, inline below                                                                                        |
-| Table of contents | Only if the article exceeds 6 headings, and then a thin sticky rail, never a boxed card                                            |
-| Images            | 1px border in light mode, slight desaturation in dark so light-background screenshots do not glare                                 |
-| Links             | Accent coloured, underline at 35% accent that goes solid on hover                                                                  |
-| Focus rings       | Always visible, accent coloured, never removed                                                                                     |
-| Theme toggle      | A sun/moon **icon button**, no text label, with an accessible name and `title`                                                     |
+| Component | Rule |
+| --- | --- |
+| Headings | Anchor link (`#`) appears on hover, in the left margin |
+| Code blocks | Shiki, themed from the site's own CSS variables so highlighting flips with the theme. Never a stock Dracula. Copy button on hover. |
+| Footnotes | Margin sidenotes above 1100px, inline below |
+| Table of contents | Only if the article exceeds 6 headings, and then a thin sticky rail, never a boxed card |
+| Images | 1px border in light mode, slight desaturation in dark so light-background screenshots do not glare |
+| Links | Accent coloured, underline at 35% accent that goes solid on hover |
+| Focus rings | Always visible, accent coloured, never removed |
+| Theme toggle | A sun/moon **icon button**, no text label, with an accessible name and `title` |
 
 ### Theme toggle implementation
 
@@ -126,14 +122,14 @@ Default follows `prefers-color-scheme`. An explicit choice persists to `localSto
 
 Enforced by Lighthouse CI. **A build that regresses this fails.**
 
-| Metric                   | Budget         |
-| ------------------------ | -------------- |
-| LCP, simulated 4G        | < 1.0s         |
-| CLS                      | 0              |
-| Total JS per page        | < 20KB gzipped |
-| Lighthouse performance   | >= 98          |
-| Lighthouse accessibility | >= 98          |
-| Lighthouse SEO           | 100            |
+| Metric | Budget |
+| --- | --- |
+| LCP, simulated 4G | < 1.0s |
+| CLS | 0 |
+| Total JS per page | < 20KB gzipped |
+| Lighthouse performance | >= 98 |
+| Lighthouse accessibility | >= 98 |
+| Lighthouse SEO | 100 |
 
 Plus: WCAG AA contrast minimum on both themes, and `prefers-reduced-motion` disables view transitions.
 
@@ -168,12 +164,12 @@ Examples move an agent's output far more than rules do. Match these.
 
 ### A good short note
 
-````markdown
+```markdown
 ---
-title: 'systemd timers beat cron for this'
+title: "systemd timers beat cron for this"
 type: til
 tags: [linux, homelab]
-summary: 'A timer that misses its window because the machine was asleep will still run; a cron job silently will not.'
+summary: "A timer that misses its window because the machine was asleep will still run; a cron job silently will not."
 ---
 
 Cron assumes the machine is awake. If a nightly backup is scheduled for 03:00 and the
@@ -186,12 +182,10 @@ box is suspended, the job is simply skipped - no error, no retry, no record.
 OnCalendar=daily
 Persistent=true
 ```
-````
 
 On the next boot, a missed activation fires immediately. For anything running on
 hardware that sleeps, that single line is the whole argument.
-
-````
+```
 
 ### A good post opening
 
@@ -208,7 +202,7 @@ etcd punishes a slow disk long before the CPU becomes the problem. I spent a wee
 tuning kubelet before checking `fsync` latency, which is where the answer was.
 
 ## The hardware
-````
+```
 
 Note what both do: the summary states the payoff, the first sentence is the conclusion, and there is no throat-clearing.
 

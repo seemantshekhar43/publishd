@@ -24,14 +24,14 @@ If that does not work offline-to-online in one command, the product has failed.
 
 ### Decisions at a glance
 
-|             |                                                                         |
-| ----------- | ----------------------------------------------------------------------- |
-| **Format**  | Markdown pipeline, plus verbatim `.html` pages as a second content kind |
-| **Store**   | Git. A private GitHub repo, no database                                 |
-| **Host**    | Vercel (site + ingest), GitHub (content), Cloudflare (DNS)              |
-| **Homelab** | Deliberately off the critical path: analytics and backup only           |
-| **Licence** | MIT, public from the first commit                                       |
-| **Tool**    | `publishd` on npm, unscoped                                             |
+| | |
+| --- | --- |
+| **Format** | Markdown pipeline, plus verbatim `.html` pages as a second content kind |
+| **Store** | Git. A private GitHub repo, no database |
+| **Host** | Vercel (site + ingest), GitHub (content), Cloudflare (DNS) |
+| **Homelab** | Deliberately off the critical path: analytics and backup only |
+| **Licence** | MIT, public from the first commit |
+| **Tool** | `publishd` on npm, unscoped |
 
 ---
 
@@ -39,11 +39,11 @@ If that does not work offline-to-online in one command, the product has failed.
 
 Content is trapped in three silos that do not talk to each other:
 
-| Silo                 | Problem                                                             |
-| -------------------- | ------------------------------------------------------------------- |
-| Obsidian vault       | Rich, linked, well-written notes that never leave the local machine |
-| Claude Code sessions | Good write-ups that die in scrollback or a stray `.md` in a repo    |
-| Ad-hoc blog drafts   | No home, so they are never finished                                 |
+| Silo | Problem |
+| --- | --- |
+| Obsidian vault | Rich, linked, well-written notes that never leave the local machine |
+| Claude Code sessions | Good write-ups that die in scrollback or a stray `.md` in a repo |
+| Ad-hoc blog drafts | No home, so they are never finished |
 
 Rejected alternatives:
 
@@ -65,7 +65,7 @@ Rejected alternatives:
 
 ### Non-goals (v1)
 
-- Multi-author, roles, or permissions. Single author _per deployment_ - open-sourcing means many deployments, not many authors on one.
+- Multi-author, roles, or permissions. Single author *per deployment* - open-sourcing means many deployments, not many authors on one.
 - Comments, likes, or any social layer. Revisit via giscus in v3.
 - A web-based WYSIWYG editor. The editor is Obsidian or your IDE, always.
 - Newsletter sending. RSS is the subscription mechanism.
@@ -79,21 +79,21 @@ Rejected alternatives:
 
 **The markdown pipeline accepts `.md` / `.mdx` only**, with a validated YAML frontmatter block. Anything else is rejected at the endpoint. A single input format is what makes every downstream feature cheap: search indexing, RSS, OG images, reading time, link rewriting, diffing.
 
-Conversion happens _at the edge_, not at the endpoint: `publishd --from docx file.docx` runs pandoc locally and posts markdown. The server contract never widens.
+Conversion happens *at the edge*, not at the endpoint: `publishd --from docx file.docx` runs pandoc locally and posts markdown. The server contract never widens.
 
 **Frontmatter contract** (validated by a shared zod schema, §6.3):
 
 ```yaml
 ---
-title: 'Running Kubernetes on a Beelink cluster' # required
-slug: k8s-beelink-cluster # optional, derived from title
-date: 2026-09-20 # optional, defaults to now
-status: published # draft | published | archived
-type: post # post | note | til | doc
-tags: [homelab, kubernetes] # optional, flat list
-summary: 'What I learned...' # optional, used in OG + RSS
-canonical: https://example.com/original # optional, if cross-posted
-publishAt: 2026-09-25T09:00:00Z # optional, scheduled
+title: "Running Kubernetes on a Beelink cluster"   # required
+slug: k8s-beelink-cluster                          # optional, derived from title
+date: 2026-09-20                                   # optional, defaults to now
+status: published                                  # draft | published | archived
+type: post                                         # post | note | til | doc
+tags: [homelab, kubernetes]                        # optional, flat list
+summary: "What I learned..."                       # optional, used in OG + RSS
+canonical: https://example.com/original            # optional, if cross-posted
+publishAt: 2026-09-25T09:00:00Z                    # optional, scheduled
 ---
 ```
 
@@ -111,14 +111,14 @@ Only `title` is required. A note dragged out of Obsidian with a one-line frontma
 
 So that inkloop artifacts and other self-contained HTML can be published through the same pipeline, without widening the markdown contract:
 
-|                   | `article` (markdown)                              | `page` (HTML)                                                          |
-| ----------------- | ------------------------------------------------- | ---------------------------------------------------------------------- |
-| Input             | `.md` / `.mdx`                                    | One self-contained `.html` file                                        |
-| Processing        | Parsed, normalised, rendered into the site layout | **None.** Served verbatim.                                             |
-| Metadata          | YAML frontmatter                                  | `<meta name="shekse:*">` tags, falling back to `<title>` and CLI flags |
-| Site chrome       | Full header, footer, theme                        | None. The artifact owns the whole page.                                |
-| RSS, search, feed | Yes                                               | Yes, listed like posts. `listed: false` hides one.                     |
-| URL               | `/<slug>`                                         | `/p/<slug>`, a separate namespace                                      |
+| | `article` (markdown) | `page` (HTML) |
+| --- | --- | --- |
+| Input | `.md` / `.mdx` | One self-contained `.html` file |
+| Processing | Parsed, normalised, rendered into the site layout | **None.** Served verbatim. |
+| Metadata | YAML frontmatter | `<meta name="shekse:*">` tags, falling back to `<title>` and CLI flags |
+| Site chrome | Full header, footer, theme | None. The artifact owns the whole page. |
+| RSS, search, feed | Yes | Yes, listed like posts. `listed: false` hides one. |
+| URL | `/<slug>` | `/p/<slug>`, a separate namespace |
 
 A `page` is not a document the site renders, it is an artifact the site **hosts**. The separate route namespace is what stops the two blurring.
 
@@ -156,14 +156,14 @@ Not stored: rendered HTML, the search index, derived metadata. All regenerated a
 
 ### 4.3 Hosting: homelab deliberately off the critical path
 
-| Component         | Where                                      | Why                                         |
-| ----------------- | ------------------------------------------ | ------------------------------------------- |
-| Markdown + assets | GitHub, private repo                       | Durable, free                               |
-| Website (static)  | Vercel                                     | Global CDN, preview deploy per PR, zero ops |
-| Ingest API        | Vercel serverless function                 | Same deploy unit as the site                |
-| DNS               | Cloudflare CNAME -> Vercel                 | Already yours                               |
-| **Analytics**     | **Homelab** (Umami in Docker)              | Privacy, and a real job for the homelab     |
-| **Backup mirror** | **Homelab** (nightly `git clone --mirror`) | Third copy, offline                         |
+| Component | Where | Why |
+| --- | --- | --- |
+| Markdown + assets | GitHub, private repo | Durable, free |
+| Website (static) | Vercel | Global CDN, preview deploy per PR, zero ops |
+| Ingest API | Vercel serverless function | Same deploy unit as the site |
+| DNS | Cloudflare CNAME -> Vercel | Already yours |
+| **Analytics** | **Homelab** (Umami in Docker) | Privacy, and a real job for the homelab |
+| **Backup mirror** | **Homelab** (nightly `git clone --mirror`) | Third copy, offline |
 
 The critical call: **do not put the ingest endpoint on the homelab.** Publishing must work on a plane, when home internet is down, when the Beelink is mid-upgrade, and from a phone. A Cloudflare Tunnel makes publishing a blog post depend on your house being up. Not worth it.
 
@@ -230,18 +230,18 @@ References: `paco.me`, `rauno.me`, `maggieappleton.com`. The bet is that restrai
 
 ## 5. Features beyond the original list
 
-| Feature                           | Why it earns its place                                                                                                                |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| **Draft previews**                | `status: draft` publishes to `/preview/<uuid>` with `noindex`, excluded from index, RSS, and search. _The feature you will use most._ |
-| **Scheduled publishing**          | `publishAt` in the future holds the post back; an hourly Vercel cron rebuilds.                                                        |
-| **Auto OG images**                | Generated at build with `satori`. Consistent, zero per-post design work.                                                              |
-| **RSS + JSON Feed**               | `/rss.xml`, `/feed.json`. Syndication without a newsletter.                                                                           |
-| **Static search**                 | Pagefind indexes at build, ~50KB, zero backend.                                                                                       |
-| **Canonical URLs**                | Cross-posting points search engines at the right copy.                                                                                |
-| **Permanent URLs + redirects**    | A slug change writes to `redirects.json`; CI fails a change without one.                                                              |
-| **Link checker in CI**            | Dead internal links fail the build; external links warn.                                                                              |
-| **`publishd list` / `unpublish`** | `unpublish` sets `status: archived`, returning 410 rather than 404.                                                                   |
-| **Idempotent republish**          | Slug is the primary key. No accidental duplicates.                                                                                    |
+| Feature | Why it earns its place |
+| --- | --- |
+| **Draft previews** | `status: draft` publishes to `/preview/<uuid>` with `noindex`, excluded from index, RSS, and search. *The feature you will use most.* |
+| **Scheduled publishing** | `publishAt` in the future holds the post back; an hourly Vercel cron rebuilds. |
+| **Auto OG images** | Generated at build with `satori`. Consistent, zero per-post design work. |
+| **RSS + JSON Feed** | `/rss.xml`, `/feed.json`. Syndication without a newsletter. |
+| **Static search** | Pagefind indexes at build, ~50KB, zero backend. |
+| **Canonical URLs** | Cross-posting points search engines at the right copy. |
+| **Permanent URLs + redirects** | A slug change writes to `redirects.json`; CI fails a change without one. |
+| **Link checker in CI** | Dead internal links fail the build; external links warn. |
+| **`publishd list` / `unpublish`** | `unpublish` sets `status: archived`, returning 410 rather than 404. |
+| **Idempotent republish** | Slug is the primary key. No accidental duplicates. |
 
 ---
 
@@ -326,19 +326,19 @@ Stored as hashes in a Vercel env var. Constant-time compare, client name logged 
 
 ## 7. Tech stack
 
-| Layer          | Choice                               | Reasoning                                                                                                           |
-| -------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| Site framework | **Astro 5**                          | Content Layer API is purpose-built for this. Zero JS by default, islands where needed. MDX, Shiki, RSS first-party. |
-| Styling        | Tailwind v4 + custom tokens          | CSS-first config: the design system lives in one `theme.css`.                                                       |
-| Search         | Pagefind                             | Static index at build, no service, ~50KB.                                                                           |
-| OG images      | satori + resvg at build              | Deterministic, no runtime image service.                                                                            |
-| Ingest         | Vercel function, Node runtime        | Colocated with the site; needs Node for the GitHub SDK.                                                             |
-| Content store  | GitHub private repo via Octokit      | See §4.2.                                                                                                           |
-| CLI            | TypeScript, citty + consola, via npx | Ships as `publishd`.                                                                                                |
-| Validation     | **zod**                              | One schema, three enforcement points.                                                                               |
-| Hosting        | Vercel                               | Preview deploys per PR matter for a design-heavy site.                                                              |
-| Analytics      | Umami, self-hosted                   | Privacy, ownership, a job for the homelab.                                                                          |
-| Monorepo       | pnpm workspaces                      | Three publishable units.                                                                                            |
+| Layer | Choice | Reasoning |
+| --- | --- | --- |
+| Site framework | **Astro 5** | Content Layer API is purpose-built for this. Zero JS by default, islands where needed. MDX, Shiki, RSS first-party. |
+| Styling | Tailwind v4 + custom tokens | CSS-first config: the design system lives in one `theme.css`. |
+| Search | Pagefind | Static index at build, no service, ~50KB. |
+| OG images | satori + resvg at build | Deterministic, no runtime image service. |
+| Ingest | Vercel function, Node runtime | Colocated with the site; needs Node for the GitHub SDK. |
+| Content store | GitHub private repo via Octokit | See §4.2. |
+| CLI | TypeScript, citty + consola, via npx | Ships as `publishd`. |
+| Validation | **zod** | One schema, three enforcement points. |
+| Hosting | Vercel | Preview deploys per PR matter for a design-heavy site. |
+| Analytics | Umami, self-hosted | Privacy, ownership, a job for the homelab. |
+| Monorepo | pnpm workspaces | Three publishable units. |
 
 ### Considered and rejected
 
@@ -437,32 +437,26 @@ The binary is `publishd` and publishing is its default action, so the common cas
 
 ```css
 /* light */
---bg: #fdfbf7;
---surface: #f5f1e8;
---text: #14120f;
---mute: #6e665a;
---border: #e6dfd1;
---accent: #a8480b;
+--bg:      #FDFBF7;   --surface: #F5F1E8;
+--text:    #14120F;   --mute:    #6E665A;
+--border:  #E6DFD1;   --accent:  #A8480B;
 
 /* dark */
---bg: #0f0e0c;
---surface: #1a1815;
---text: #ede8df;
---mute: #948b7c;
---border: #2a2621;
---accent: #e3944a;
+--bg:      #0F0E0C;   --surface: #1A1815;
+--text:    #EDE8DF;   --mute:    #948B7C;
+--border:  #2A2621;   --accent:  #E3944A;
 ```
 
 Two neutrals plus one accent. No secondary accent, no semantic colour scale beyond what code highlighting needs.
 
 ### 9.2 Type scale - pairing B, Documentation
 
-| Role            | Face                             | Size           |
-| --------------- | -------------------------------- | -------------- |
-| Article body    | Inter, 400, 1.68 line-height     | 17px           |
-| Headings        | Inter Tight, 600, tight tracking | 32 / 24 / 19px |
-| UI, meta, dates | Inter, 450                       | 14px           |
-| Code            | JetBrains Mono                   | 14px           |
+| Role | Face | Size |
+| --- | --- | --- |
+| Article body | Inter, 400, 1.68 line-height | 17px |
+| Headings | Inter Tight, 600, tight tracking | 32 / 24 / 19px |
+| UI, meta, dates | Inter, 450 | 14px |
+| Code | JetBrains Mono | 14px |
 
 All-sans gives up the serif signal, so the design earns its character elsewhere: the warm cream ground, the burnt-orange accent, generous spacing, and layout restraint. Body drops from 19px to 17px because Inter runs optically larger than a serif at the same size.
 
@@ -470,32 +464,32 @@ Measure capped at **68ch** - one column, centred, no sidebar. 8px spacing base w
 
 ### 9.3 Pages
 
-| Route                                    | Contents                                                      |
-| ---------------------------------------- | ------------------------------------------------------------- |
-| `/`                                      | Bio line plus the year-grouped list                           |
-| `/<slug>`                                | The article. Flat URLs, reserved words guarded by the schema. |
-| `/p/<slug>`                              | An HTML `page` artifact, served verbatim                      |
-| `/preview/<uuid>`                        | Draft, `noindex`, draft banner strip                          |
-| `/tags`, `/tags/<tag>`                   | Tag cloud sized by count; filtered list                       |
-| `/til`                                   | TIL entries, denser, date-led                                 |
-| `/archive`                               | Everything, one line per item                                 |
-| `/about`                                 | Hand-written                                                  |
-| `/rss.xml`, `/feed.json`, `/sitemap.xml` | Machine surfaces                                              |
+| Route | Contents |
+| --- | --- |
+| `/` | Bio line plus the year-grouped list |
+| `/<slug>` | The article. Flat URLs, reserved words guarded by the schema. |
+| `/p/<slug>` | An HTML `page` artifact, served verbatim |
+| `/preview/<uuid>` | Draft, `noindex`, draft banner strip |
+| `/tags`, `/tags/<tag>` | Tag cloud sized by count; filtered list |
+| `/til` | TIL entries, denser, date-led |
+| `/archive` | Everything, one line per item |
+| `/about` | Hand-written |
+| `/rss.xml`, `/feed.json`, `/sitemap.xml` | Machine surfaces |
 
 ### 9.4 SEO and machine surfaces
 
 All generated at build, none hand-maintained. Nothing here should ever be a checklist item at publish time.
 
-| Surface            | What ships                                                                                                                                                         |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `sitemap.xml`      | Astro's sitemap integration. Drafts, previews, archived excluded. `lastmod` from the git commit date, not the build date, so a rebuild does not churn every entry. |
-| `robots.txt`       | Allow all, point at the sitemap, disallow `/preview/`.                                                                                                             |
-| Icons              | Generated at build from one source SVG: `favicon.ico`, 32/180px PNGs, `apple-touch-icon`, maskable 192/512.                                                        |
-| `site.webmanifest` | Name, theme colour per scheme, icons.                                                                                                                              |
-| Per-page meta      | `<title>`, description from `summary`, canonical, Open Graph, `twitter:card summary_large_image`. Drafts add `noindex, nofollow`.                                  |
-| JSON-LD            | `BlogPosting` per article; `Person` + `WebSite` on the homepage. `name: "shekse"`, `alternateName: "Seemant Shekhar"`.                                             |
-| Feed autodiscovery | `<link rel="alternate">` for RSS and JSON Feed in every head.                                                                                                      |
-| Theme colour       | `<meta name="theme-color">` with a `prefers-color-scheme` variant.                                                                                                 |
+| Surface | What ships |
+| --- | --- |
+| `sitemap.xml` | Astro's sitemap integration. Drafts, previews, archived excluded. `lastmod` from the git commit date, not the build date, so a rebuild does not churn every entry. |
+| `robots.txt` | Allow all, point at the sitemap, disallow `/preview/`. |
+| Icons | Generated at build from one source SVG: `favicon.ico`, 32/180px PNGs, `apple-touch-icon`, maskable 192/512. |
+| `site.webmanifest` | Name, theme colour per scheme, icons. |
+| Per-page meta | `<title>`, description from `summary`, canonical, Open Graph, `twitter:card summary_large_image`. Drafts add `noindex, nofollow`. |
+| JSON-LD | `BlogPosting` per article; `Person` + `WebSite` on the homepage. `name: "shekse"`, `alternateName: "Seemant Shekhar"`. |
+| Feed autodiscovery | `<link rel="alternate">` for RSS and JSON Feed in every head. |
+| Theme colour | `<meta name="theme-color">` with a `prefers-color-scheme` variant. |
 
 Enforced, not assumed: the Lighthouse CI budget covers SEO at >= 100, and a unit test asserts every published route emits a canonical URL, an OG image, and valid JSON-LD.
 
@@ -541,14 +535,15 @@ Nothing in the codebase may reference `shekse.com`, your name, or your repo:
 
 ```ts
 export default defineSiteConfig({
-  title: 'shekse',
-  url: 'https://publish.shekse.com',
-  bio: 'Notes on homelab infrastructure, distributed systems, and tools I build.',
-  author: { name: 'Seemant Shekhar', byline: 'shekse', github: 'seemantshekhar43' },
-  content: { repo: 'seemantshekhar43/shekse-publish-content', branch: 'main' },
-  theme: { font: 'docs', palette: 'cream' },
-  features: { til: true, search: true, htmlPages: true },
-});
+  title:       "shekse",
+  url:         "https://publish.shekse.com",
+  bio:         "Notes on homelab infrastructure, distributed systems, and tools I build.",
+  author:      { name: "Seemant Shekhar", byline: "shekse",
+                 github: "seemantshekhar43" },
+  content:     { repo: "seemantshekhar43/shekse-publish-content", branch: "main" },
+  theme:       { font: "docs", palette: "cream" },
+  features:    { til: true, search: true, htmlPages: true },
+})
 ```
 
 `theme` makes the font pairings and palettes named presets someone else picks from, rather than a fork-and-edit-the-CSS exercise.
@@ -557,26 +552,26 @@ export default defineSiteConfig({
 
 Three names, settled once here rather than per file:
 
-| Surface                           | Name                                                 | Why                                                                                                                                        |
-| --------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Site byline, RSS author, homepage | `shekse`                                             | The pen name is the public identity                                                                                                        |
-| LICENSE copyright line            | Seemant Shekhar                                      | Copyright attaches to a legal person. The one non-negotiable.                                                                              |
-| `package.json` author             | Seemant Shekhar                                      | Convention, matches the LICENSE                                                                                                            |
-| JSON-LD `Person`                  | `name: "shekse"`, `alternateName: "Seemant Shekhar"` | Connects pen name to person without the byline reading as a legal document                                                                 |
-| Repo owner                        | `seemantshekhar43`                                   | Personal account. No org - an org buys collaborator management a single-author project does not need, and a repo can be transferred later. |
-| Git commit author                 | Seemant Shekhar                                      | Whatever your global git config already is                                                                                                 |
+| Surface | Name | Why |
+| --- | --- | --- |
+| Site byline, RSS author, homepage | `shekse` | The pen name is the public identity |
+| LICENSE copyright line | Seemant Shekhar | Copyright attaches to a legal person. The one non-negotiable. |
+| `package.json` author | Seemant Shekhar | Convention, matches the LICENSE |
+| JSON-LD `Person` | `name: "shekse"`, `alternateName: "Seemant Shekhar"` | Connects pen name to person without the byline reading as a legal document |
+| Repo owner | `seemantshekhar43` | Personal account. No org - an org buys collaborator management a single-author project does not need, and a repo can be transferred later. |
+| Git commit author | Seemant Shekhar | Whatever your global git config already is |
 
 **`publishd` always means the tool; `shekse` always means you.** No overlap. The `shekse` npm org is being deleted, so scoped `@shekse/*` is off the table.
 
 ### 10.4 What ships
 
-| Artifact                                     | Form                          | Notes                                                                                                                                                         |
-| -------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `seemantshekhar43/publishd`                  | Public repo, MIT              | Site, ingest function, CLI, schema. "Deploy to Vercel" button prompting for env vars.                                                                         |
-| `seemantshekhar43/publishd-content-template` | GitHub _template_ repo        | Empty content repo with validation workflow and one example post. Neutral name, unlike your own `shekse-publish-content`, because other people start from it. |
-| `publishd`                                   | npm package via npx           | Unscoped. Publish is the default action.                                                                                                                      |
-| `publishd-schema`                            | npm package                   | Published separately so the content repo's CI can validate without vendoring the site.                                                                        |
-| Skill                                        | `integrations/skill/SKILL.md` | Copy into any agent's skills directory. References `docs/design.md`.                                                                                          |
+| Artifact | Form | Notes |
+| --- | --- | --- |
+| `seemantshekhar43/publishd` | Public repo, MIT | Site, ingest function, CLI, schema. "Deploy to Vercel" button prompting for env vars. |
+| `seemantshekhar43/publishd-content-template` | GitHub *template* repo | Empty content repo with validation workflow and one example post. Neutral name, unlike your own `shekse-publish-content`, because other people start from it. |
+| `publishd` | npm package via npx | Unscoped. Publish is the default action. |
+| `publishd-schema` | npm package | Published separately so the content repo's CI can validate without vendoring the site. |
+| Skill | `integrations/skill/SKILL.md` | Copy into any agent's skills directory. References `docs/design.md`. |
 
 ### 10.5 README structure
 
@@ -586,7 +581,7 @@ Three names, settled once here rather than per file:
 4. **Integrations** - Obsidian shell command, agent skill with the copy-paste path.
 5. **Configuration reference** - every field and env var, generated from the zod schema so it cannot drift.
 6. **Architecture** - the diagram, and why git rather than a database.
-7. **Security model** - what the ingest token protects, the HTML `page` same-origin constraint, and explicitly what this does _not_ defend against.
+7. **Security model** - what the ingest token protects, the HTML `page` same-origin constraint, and explicitly what this does *not* defend against.
 
 ### 10.6 Public from the first commit
 
@@ -596,7 +591,7 @@ Building in the open forces the config discipline to be real rather than aspirat
 2. **The README must say "work in progress" honestly.** A public repo at M1 is a walking skeleton. Say so, with a status line and what does not work yet.
 3. **Commit messages and code comments are now public writing.** Conventional commits were already planned, which covers most of it.
 
-What does _not_ change: the full README, contribution guide, and deploy button are still M4 work. Public from commit one means the repo is _visible_ from commit one, not _documented_ from commit one.
+What does *not* change: the full README, contribution guide, and deploy button are still M4 work. Public from commit one means the repo is *visible* from commit one, not *documented* from commit one.
 
 > The code repo is public, so the **content** repo being private is now the only thing separating drafts from the world. Keep them as two repos, and never let a convenience commit put content into the code repo.
 
@@ -630,20 +625,20 @@ Only on success does it fire the Vercel deploy hook. **This is why a bad publish
 
 ### Testing strategy
 
-| Level       | Covers                                                                                                               | Runs    |
-| ----------- | -------------------------------------------------------------------------------------------------------------------- | ------- |
-| Unit        | Schema, normalisers, slug logic. Highest-value, since this is where correctness lives.                               | Per PR  |
-| Integration | Ingest function against a mocked GitHub API: auth, rate limiting, update-vs-create.                                  | Per PR  |
-| E2E         | Playwright: publish a fixture to staging, assert page renders and appears in RSS and search.                         | Nightly |
-| Visual      | Screenshot diffs on homepage and article in both themes. On a design-led site these are the regressions that matter. | Per PR  |
+| Level | Covers | Runs |
+| --- | --- | --- |
+| Unit | Schema, normalisers, slug logic. Highest-value, since this is where correctness lives. | Per PR |
+| Integration | Ingest function against a mocked GitHub API: auth, rate limiting, update-vs-create. | Per PR |
+| E2E | Playwright: publish a fixture to staging, assert page renders and appears in RSS and search. | Nightly |
+| Visual | Screenshot diffs on homepage and article in both themes. On a design-led site these are the regressions that matter. | Per PR |
 
 ### Environments
 
-| Env     | Site                 | Content branch |
-| ------- | -------------------- | -------------- |
-| local   | `localhost:4321`     | local clone    |
-| staging | Vercel preview URL   | `staging`      |
-| prod    | `publish.shekse.com` | `main`         |
+| Env | Site | Content branch |
+| --- | --- | --- |
+| local | `localhost:4321` | local clone |
+| staging | Vercel preview URL | `staging` |
+| prod | `publish.shekse.com` | `main` |
 
 ### Observability
 
@@ -690,21 +685,21 @@ Obsidian plugin proper, scheduled publishing, multi-part series, giscus comments
 - Zero manual steps between the command and the live page.
 - Publishing works from a phone, via Obsidian mobile plus Working Copy, or the raw API.
 - Lighthouse performance and accessibility hold at >= 98 six months in.
-- You publish more than you did before it existed. _If not, the problem was never tooling and the project should be reassessed._
+- You publish more than you did before it existed. *If not, the problem was never tooling and the project should be reassessed.*
 
 ---
 
 ## 14. Risks
 
-| Risk                                                    | Mitigation                                                                                                                                          |
-| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Building the tool becomes the substitute for writing    | M1 is deliberately ugly and ships in a week. Write something real before starting M2.                                                               |
+| Risk | Mitigation |
+| --- | --- |
+| Building the tool becomes the substitute for writing | M1 is deliberately ugly and ships in a week. Write something real before starting M2. |
 | Token leaks into the public repo or an agent transcript | Tokens in 1Password, referenced by `op://` URI. CLI never echoes a token. Per-client tokens make revocation cheap. Secret scanning from commit one. |
-| An agent publishes something half-finished publicly     | Draft-first is the default in the skill. `--status published` requires an explicit flag and confirmation turn.                                      |
-| Repo bloat from screenshots                             | CI warns at 200MB, fails at 400MB. R2 migration pre-planned behind one function.                                                                    |
-| Vercel pricing or policy change                         | Site is static output. Cloudflare Pages migration is an afternoon; ingest becomes a Worker. Content untouched.                                      |
-| Obsidian syntax breaks rendering                        | Normalisers unit-tested against a fixture vault containing every construct. Unknown syntax degrades to plain text, never a broken page.             |
-| Slug collisions with reserved routes                    | Schema rejects `tags`, `til`, `archive`, `about`, `preview`, `api`, `rss`, `p` and friends at validation time, client-side.                         |
+| An agent publishes something half-finished publicly | Draft-first is the default in the skill. `--status published` requires an explicit flag and confirmation turn. |
+| Repo bloat from screenshots | CI warns at 200MB, fails at 400MB. R2 migration pre-planned behind one function. |
+| Vercel pricing or policy change | Site is static output. Cloudflare Pages migration is an afternoon; ingest becomes a Worker. Content untouched. |
+| Obsidian syntax breaks rendering | Normalisers unit-tested against a fixture vault containing every construct. Unknown syntax degrades to plain text, never a broken page. |
+| Slug collisions with reserved routes | Schema rejects `tags`, `til`, `archive`, `about`, `preview`, `api`, `rss`, `p` and friends at validation time, client-side. |
 
 ---
 
@@ -712,18 +707,18 @@ Obsidian plugin proper, scheduled publishing, multi-part series, giscus comments
 
 All settled across four review rounds on the HTML artifact.
 
-| Question                          | Answer                                                        | Round |
-| --------------------------------- | ------------------------------------------------------------- | ----- |
-| Code repo visibility              | Public, open source                                           | 1     |
-| Does `/til` need its own surface? | Merged into the main feed; `type: til` still drives layout    | 1     |
-| Staging domain                    | Vercel preview URLs only. No DNS entry                        | 1     |
-| Vault layout                      | `published/` subfolder of the vault, synced by obsidian-git   | 2     |
-| HTML pages in the feed            | Listed like posts, `listed: false` hides one                  | 2     |
-| Open source timing                | Public from the first commit                                  | 2     |
-| Font pairing                      | B, Documentation. Inter Tight / Inter / JetBrains Mono        | 2     |
-| Palette                           | 3, Cream. Warm ground, burnt-orange accent                    | 2     |
-| Package name                      | `publishd`, unscoped. Publish is the default action           | 3     |
-| GitHub owner                      | `seemantshekhar43`. No org                                    | 3     |
-| Repo naming                       | `publishd` for the tool, `shekse-publish-content` for content | 4     |
+| Question | Answer | Round |
+| --- | --- | --- |
+| Code repo visibility | Public, open source | 1 |
+| Does `/til` need its own surface? | Merged into the main feed; `type: til` still drives layout | 1 |
+| Staging domain | Vercel preview URLs only. No DNS entry | 1 |
+| Vault layout | `published/` subfolder of the vault, synced by obsidian-git | 2 |
+| HTML pages in the feed | Listed like posts, `listed: false` hides one | 2 |
+| Open source timing | Public from the first commit | 2 |
+| Font pairing | B, Documentation. Inter Tight / Inter / JetBrains Mono | 2 |
+| Palette | 3, Cream. Warm ground, burnt-orange accent | 2 |
+| Package name | `publishd`, unscoped. Publish is the default action | 3 |
+| GitHub owner | `seemantshekhar43`. No org | 3 |
+| Repo naming | `publishd` for the tool, `shekse-publish-content` for content | 4 |
 
 All decisions are settled. Nothing blocks M1.

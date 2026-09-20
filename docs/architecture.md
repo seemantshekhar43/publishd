@@ -54,10 +54,10 @@ Publishing must work on a plane, when home internet is down, and when the homela
 
 Two repositories, and the split is load-bearing.
 
-| Repo                                      | Visibility      | Holds                                        |
-| ----------------------------------------- | --------------- | -------------------------------------------- |
-| `seemantshekhar43/publishd`               | **Public**, MIT | All code: site, CLI, ingest function, schema |
-| `seemantshekhar43/shekse-publish-content` | **Private**     | Markdown and assets only. Never code.        |
+| Repo | Visibility | Holds |
+| --- | --- | --- |
+| `seemantshekhar43/publishd` | **Public**, MIT | All code: site, CLI, ingest function, schema |
+| `seemantshekhar43/shekse-publish-content` | **Private** | Markdown and assets only. Never code. |
 
 Reasons they are separate:
 
@@ -65,7 +65,7 @@ Reasons they are separate:
 - The content repo must stay something you could hand to any other static site generator tomorrow.
 - The code repo is public. The content repo being private is the **only** thing separating unpublished drafts from the world.
 
-A third repo, `seemantshekhar43/publishd-content-template`, is a GitHub _template_ repo so that someone else can create their own content repo with one click. It carries a neutral name because other people start from it.
+A third repo, `seemantshekhar43/publishd-content-template`, is a GitHub *template* repo so that someone else can create their own content repo with one click. It carries a neutral name because other people start from it.
 
 ---
 
@@ -93,11 +93,11 @@ publishd/
 
 It is imported by three consumers, and that is the entire point:
 
-| Consumer                | When it validates | What it catches                                                     |
-| ----------------------- | ----------------- | ------------------------------------------------------------------- |
-| `apps/cli`              | Before sending    | Bad frontmatter on the author's laptop, before a network call       |
-| `apps/web` ingest route | On receipt        | A malformed request from any client, including a future one         |
-| `apps/web` build        | At build time     | Drift between what is in the content repo and what the site expects |
+| Consumer | When it validates | What it catches |
+| --- | --- | --- |
+| `apps/cli` | Before sending | Bad frontmatter on the author's laptop, before a network call |
+| `apps/web` ingest route | On receipt | A malformed request from any client, including a future one |
+| `apps/web` build | At build time | Drift between what is in the content repo and what the site expects |
 
 It is also published to npm as `publishd-schema` so the **content repo's** CI can validate a push without vendoring the whole site.
 
@@ -138,23 +138,23 @@ The function returns the final URL immediately. It does not wait for the build. 
 
 ### Latency budget
 
-| Stage                              | Target |
-| ---------------------------------- | ------ |
-| Ingest (auth, validate, normalise) | 300ms  |
-| GitHub commit                      | 500ms  |
-| Vercel build                       | 20-40s |
+| Stage | Target |
+| --- | --- |
+| Ingest (auth, validate, normalise) | 300ms |
+| GitHub commit | 500ms |
+| Vercel build | 20-40s |
 
 The 60-second end-to-end figure in the PRD is the metric that decides whether this gets used. Treat a regression here as a bug.
 
 ### Failure modes
 
-| Failure                       | Behaviour                                                                             |
-| ----------------------------- | ------------------------------------------------------------------------------------- |
-| Invalid token                 | 401, logged, no commit. Rate limiter still counts the attempt.                        |
-| Schema violation              | 422 with the field path and the expected shape. No commit.                            |
-| GitHub API down               | 502. The CLI retries with backoff. Nothing is half-written, because it is one commit. |
-| Content CI fails after commit | The deploy hook never fires. The site keeps serving the previous build.               |
-| Build fails                   | Vercel keeps the last good deployment live. ntfy alert fires.                         |
+| Failure | Behaviour |
+| --- | --- |
+| Invalid token | 401, logged, no commit. Rate limiter still counts the attempt. |
+| Schema violation | 422 with the field path and the expected shape. No commit. |
+| GitHub API down | 502. The CLI retries with backoff. Nothing is half-written, because it is one commit. |
+| Content CI fails after commit | The deploy hook never fires. The site keeps serving the previous build. |
+| Build fails | Vercel keeps the last good deployment live. ntfy alert fires. |
 
 The design goal is that **no failure produces a broken published site** - the worst case is that a publish does not appear.
 
@@ -170,7 +170,7 @@ PUBLISHD_TOKENS='{"cli":"sha256:...","obsidian":"sha256:...","agent":"sha256:...
 
 - Constant-time comparison. Never `===` on the raw value.
 - Per-client tokens so a leak is revoked without rotating everything.
-- The client name is logged on every publish, which is how you find out _which_ integration is misbehaving.
+- The client name is logged on every publish, which is how you find out *which* integration is misbehaving.
 - No OAuth, no user table, no session. There is exactly one author per deployment.
 
 The token is the trust boundary for the whole system. Everything downstream - including raw HTML in a `page` - is trusted because it got past the token.
@@ -181,14 +181,14 @@ The token is the trust boundary for the whole system. Everything downstream - in
 
 Two, and they run different pipelines on purpose.
 
-|                 | `article`                                         | `page`                                                                 |
-| --------------- | ------------------------------------------------- | ---------------------------------------------------------------------- |
-| Input           | `.md` / `.mdx`                                    | One self-contained `.html` file                                        |
-| Processing      | Parsed, normalised, rendered into the site layout | **None.** Stored and served byte-for-byte.                             |
-| Metadata        | YAML frontmatter                                  | `<meta name="shekse:*">` tags, falling back to `<title>` and CLI flags |
-| Site chrome     | Full header, footer, theme                        | None. The artifact owns the whole page.                                |
-| URL             | `/<slug>`                                         | `/p/<slug>`                                                            |
-| Feed and search | Yes                                               | Yes. `listed: false` hides one.                                        |
+| | `article` | `page` |
+| --- | --- | --- |
+| Input | `.md` / `.mdx` | One self-contained `.html` file |
+| Processing | Parsed, normalised, rendered into the site layout | **None.** Stored and served byte-for-byte. |
+| Metadata | YAML frontmatter | `<meta name="shekse:*">` tags, falling back to `<title>` and CLI flags |
+| Site chrome | Full header, footer, theme | None. The artifact owns the whole page. |
+| URL | `/<slug>` | `/p/<slug>` |
+| Feed and search | Yes | Yes. `listed: false` hides one. |
 
 A `page` is not a document the site renders, it is an artifact the site **hosts**. The separate route namespace is what stops the two blurring.
 
@@ -206,14 +206,14 @@ Do not write a sanitiser. Sanitising HTML well enough to be a real security boun
 
 Astro 5, static output. Everything below is generated at build and is disposable - none of it is stored in git.
 
-| Output                  | Produced by                                                                |
-| ----------------------- | -------------------------------------------------------------------------- |
-| HTML pages              | Astro content collections                                                  |
-| Syntax highlighting     | Shiki, themed from the site's own CSS variables so it flips with the theme |
-| Search index            | Pagefind, ~50KB, indexes the built output                                  |
-| OG images               | `satori` + `@resvg/resvg-js`, from title, type, and date                   |
-| Icons and manifest      | Generated from one source SVG                                              |
-| RSS, JSON Feed, sitemap | Astro integrations                                                         |
+| Output | Produced by |
+| --- | --- |
+| HTML pages | Astro content collections |
+| Syntax highlighting | Shiki, themed from the site's own CSS variables so it flips with the theme |
+| Search index | Pagefind, ~50KB, indexes the built output |
+| OG images | `satori` + `@resvg/resvg-js`, from title, type, and date |
+| Icons and manifest | Generated from one source SVG |
+| RSS, JSON Feed, sitemap | Astro integrations |
 
 `lastmod` in the sitemap comes from the **git commit date**, not the build date. Otherwise a rebuild churns every entry and the sitemap becomes noise.
 
@@ -225,24 +225,24 @@ All deployment-specific identity lives in one typed, schema-validated file:
 
 ```ts
 export default defineSiteConfig({
-  title: 'shekse',
-  url: 'https://publish.shekse.com',
-  bio: 'Notes on homelab infrastructure, distributed systems, and tools I build.',
-  author: { name: 'Seemant Shekhar', byline: 'shekse', github: 'seemantshekhar43' },
-  content: { repo: 'seemantshekhar43/shekse-publish-content', branch: 'main' },
-  theme: { font: 'docs', palette: 'cream' },
+  title:    "shekse",
+  url:      "https://publish.shekse.com",
+  bio:      "Notes on homelab infrastructure, distributed systems, and tools I build.",
+  author:   { name: "Seemant Shekhar", byline: "shekse", github: "seemantshekhar43" },
+  content:  { repo: "seemantshekhar43/shekse-publish-content", branch: "main" },
+  theme:    { font: "docs", palette: "cream" },
   features: { til: true, search: true, htmlPages: true },
-});
+})
 ```
 
 Secrets never live here. They are environment variables:
 
-| Variable            | Where  | Purpose                           |
-| ------------------- | ------ | --------------------------------- |
-| `PUBLISHD_TOKENS`   | Vercel | Hashed ingest tokens              |
-| `GITHUB_TOKEN`      | Vercel | Commit access to the content repo |
+| Variable | Where | Purpose |
+| --- | --- | --- |
+| `PUBLISHD_TOKENS` | Vercel | Hashed ingest tokens |
+| `GITHUB_TOKEN` | Vercel | Commit access to the content repo |
 | `PUBLISHD_ENDPOINT` | Client | Overrides the configured endpoint |
-| `PUBLISHD_TOKEN`    | Client | The client's bearer token         |
+| `PUBLISHD_TOKEN` | Client | The client's bearer token |
 
 The client reads `~/.config/publishd/config.toml` for named profiles, so the same CLI targets local, staging, and production without a code change.
 
@@ -252,13 +252,13 @@ The client reads `~/.config/publishd/config.toml` for named profiles, so the sam
 
 Where to add things, so they land in the right layer:
 
-| You want to             | Change                                                                                   |
-| ----------------------- | ---------------------------------------------------------------------------------------- |
-| Add a frontmatter field | `packages/schema` only. The three consumers pick it up.                                  |
-| Support a new client    | Nothing. Add a token to `PUBLISHD_TOKENS`. The HTTP contract is the integration surface. |
-| Change the look         | `site.config.ts` theme presets, or `docs/design.md` tokens. Not component CSS.           |
-| Add a route             | `apps/web/src/pages`, and add the slug to the reserved list in the schema.               |
-| Move assets off git     | Reimplement `uploadAsset()` in the CLI. One function, by design.                         |
+| You want to | Change |
+| --- | --- |
+| Add a frontmatter field | `packages/schema` only. The three consumers pick it up. |
+| Support a new client | Nothing. Add a token to `PUBLISHD_TOKENS`. The HTTP contract is the integration surface. |
+| Change the look | `site.config.ts` theme presets, or `docs/design.md` tokens. Not component CSS. |
+| Add a route | `apps/web/src/pages`, and add the slug to the reserved list in the schema. |
+| Move assets off git | Reimplement `uploadAsset()` in the CLI. One function, by design. |
 
 ---
 

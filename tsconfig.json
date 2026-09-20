@@ -3,6 +3,7 @@
   "references": [
     { "path": "packages/schema" },
     { "path": "apps/cli" },
-    { "path": "apps/web" }
+    { "path": "apps/web" },
+    { "path": "tsconfig.tests.json" }
   ]
 }

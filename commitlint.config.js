@@ -1,4 +1,5 @@
 import conventional from '@commitlint/config-conventional';
+import createConventionalPreset from 'conventional-changelog-conventionalcommits';
 
 /** Scopes used by hand, matching the `area:` labels in docs/development.md section 5. */
 const AREA_SCOPES = [
@@ -36,13 +37,18 @@ const GATE_STEPS = [
   'ci',
 ];
 
+const { parser: conventionalParserOpts } = await createConventionalPreset();
+
 export default {
   extends: ['@commitlint/config-conventional'],
   // The default conventional header pattern matches the type as `\w*`, which
   // excludes the hyphen in `no-mistakes`. Widen it so the gate's own commits
-  // parse; everything else about the format is unchanged.
+  // parse; everything else about the format is unchanged. Spreading the
+  // preset's own parserOpts keeps noteKeywords, breakingHeaderPattern,
+  // revertPattern and issuePrefixes, which a bare override would drop.
   parserPreset: {
     parserOpts: {
+      ...conventionalParserOpts,
       headerPattern: /^([\w-]+)(?:\(([\w$.\-*/\s]*)\))?!?: (.*)$/,
       headerCorrespondence: ['type', 'scope', 'subject'],
     },

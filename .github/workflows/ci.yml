@@ -52,8 +52,7 @@ jobs:
       - name: Check for hardcoded identity in source
         run: |
           if grep -rniE 'shekse\.com|seemantshekhar43|shekse-publish-content' \
-               apps packages 2>/dev/null \
-             | grep -vE '\.test\.ts:|issues/[0-9]+'; then
+               apps packages 2>/dev/null; then
             echo "::error::Hardcoded deployment identity found in apps/ or packages/."
             echo "Move it to site.config.ts - see docs/architecture.md section 8."
             exit 1

@@ -124,29 +124,23 @@ The last one is not optional for UI. Screenshots in the PR.
 
 ```markdown
 ## Goal
-
 One or two sentences. What this achieves, in terms of behaviour the author would notice.
 
 ## Context
-
 Why now, what it depends on, which doc section governs it. Link the doc.
 
 ## Scope
-
 - Bullet list of what changes
 - Be specific about files and packages where known
 
 ## Out of scope
-
 - What this deliberately does not do, so the PR does not sprawl
 
 ## Acceptance criteria
-
 - [ ] Observable, checkable statements
 - [ ] Each one is something a reviewer can verify without reading the diff
 
 ## Notes
-
 Gotchas, links, prior decisions from the PRD decision log.
 ```
 
@@ -154,12 +148,12 @@ Gotchas, links, prior decisions from the PRD decision log.
 
 ## 5. Labels
 
-| Prefix      | Values                                                                |
-| ----------- | --------------------------------------------------------------------- |
-| `area:`     | `cli`, `web`, `ingest`, `schema`, `skill`, `content`, `infra`, `docs` |
-| `type:`     | `feat`, `fix`, `chore`, `docs`, `test`, `refactor`                    |
-| `priority:` | `p0` (blocks the milestone), `p1` (should), `p2` (nice)               |
-| standalone  | `blocked`, `good first issue`, `security`                             |
+| Prefix | Values |
+| --- | --- |
+| `area:` | `cli`, `web`, `ingest`, `schema`, `skill`, `content`, `infra`, `docs` |
+| `type:` | `feat`, `fix`, `chore`, `docs`, `test`, `refactor` |
+| `priority:` | `p0` (blocks the milestone), `p1` (should), `p2` (nice) |
+| standalone | `blocked`, `good first issue`, `security` |
 
 Every issue gets one `area:`, one `type:`, and one `priority:`.
 
@@ -205,16 +199,16 @@ The repository is **public from the first commit**. This is not a normal private
 
 ## 9. Tooling reference
 
-| Task                           | Command                                                       |
-| ------------------------------ | ------------------------------------------------------------- |
-| GitHub dashboard for this repo | `npx -y gh-axi`                                               |
-| Create an issue                | `npx -y gh-axi issue create --title "..." --body-file <path>` |
-| List open issues               | `npx -y gh-axi issue list`                                    |
-| Create a PR                    | `npx -y gh-axi pr create --title "..." --body-file <path>`    |
-| Check CI on a PR               | `npx -y gh-axi pr checks <n>`                                 |
-| Debug a failing run            | `npx -y gh-axi run view <id> --log-failed`                    |
-| Start a planning artifact      | `npx -y inkloop .inkloop/<topic>.html`                        |
-| Verify UI in a real browser    | `npx -y chrome-devtools-axi open <url>`                       |
-| Validate before merge          | the `no-mistakes` skill                                       |
+| Task | Command |
+| --- | --- |
+| GitHub dashboard for this repo | `npx -y gh-axi` |
+| Create an issue | `npx -y gh-axi issue create --title "..." --body-file <path>` |
+| List open issues | `npx -y gh-axi issue list` |
+| Create a PR | `npx -y gh-axi pr create --title "..." --body-file <path>` |
+| Check CI on a PR | `npx -y gh-axi pr checks <n>` |
+| Debug a failing run | `npx -y gh-axi run view <id> --log-failed` |
+| Start a planning artifact | `npx -y inkloop .inkloop/<topic>.html` |
+| Verify UI in a real browser | `npx -y chrome-devtools-axi open <url>` |
+| Validate before merge | the `no-mistakes` skill |
 
 Use `--body-file` for anything multi-line. Do not try to pass markdown through `--body`.
