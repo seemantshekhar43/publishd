@@ -171,7 +171,7 @@ Every issue gets one `area:`, one `type:`, and one `priority:`.
 
 ## 7. Local setup
 
-Node `>=22` (see `.nvmrc`) and pnpm, pinned by `packageManager` in the root `package.json`.
+Node `>=22` (see `.nvmrc`) and pnpm, pinned by `packageManager` in the root `package.json`. Also install `gitleaks` (`brew install gitleaks`), since the pre-commit hook refuses to run without it.
 
 ```bash
 pnpm install

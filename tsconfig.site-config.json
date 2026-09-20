@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+    "tsBuildInfoFile": "node_modules/.cache/tsconfig.site-config.tsbuildinfo"
+  },
+  "include": ["site.config.ts"],
+  "references": [{ "path": "packages/schema" }]
+}

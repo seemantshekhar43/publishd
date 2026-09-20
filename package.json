@@ -14,9 +14,12 @@
     "node": ">=22"
   },
   "packageManager": "pnpm@11.17.0",
+  "dependencies": {
+    "publishd-schema": "workspace:*"
+  },
   "scripts": {
     "build": "tsc -b",
-    "clean": "tsc -b --clean && rm -rf apps/*/dist packages/*/dist",
+    "clean": "tsc -b --clean && rm -rf dist apps/*/dist packages/*/dist",
     "dev": "pnpm -r --parallel --if-present dev",
     "format": "prettier --write .",
     "lint": "eslint . --max-warnings=0 && prettier --check .",
