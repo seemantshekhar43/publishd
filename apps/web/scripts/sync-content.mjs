@@ -73,6 +73,9 @@ async function main() {
   for (const path of paths) {
     const { data } = await octokit.repos.getContent({ owner, repo, ref: branch, path });
     if (Array.isArray(data) || data.type !== 'file' || !data.content) {
+      console.warn(
+        `[sync-content] skipping ${path}: no inline content returned (file too large or unsupported encoding)`,
+      );
       continue;
     }
     const raw = Buffer.from(data.content, 'base64').toString('utf-8');
