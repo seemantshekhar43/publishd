@@ -180,10 +180,10 @@ pnpm lint         # eslint with zero warnings tolerated, then prettier --check
 pnpm lint:fix
 pnpm typecheck
 pnpm build
-pnpm dev          # nothing to serve yet - the site lands with its own M1 issue
+pnpm dev          # runs the Astro dev server for apps/web
 ```
 
-The workspace packages (`apps/web`, `apps/cli`, `packages/schema`) are scaffolded stubs; their implementations land with the M1 issues that own them. `pnpm dev` runs whichever packages have declared a `dev` script, which is none of them yet.
+`packages/schema`, `apps/web` (the Astro site and `/api/ingest`), and `apps/cli` (the `publishd` binary) are all implemented. `pnpm dev` runs whichever packages have declared a `dev` script - currently `apps/web`.
 
 Publishing against a local instance uses the `local` profile in `~/.config/publishd/config.toml`, so the full loop is testable without touching production.
 

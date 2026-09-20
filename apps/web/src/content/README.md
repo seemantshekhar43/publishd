@@ -6,5 +6,5 @@ directory is populated by cloning the private content repo before
 content here - see `AGENTS.md` rule 5 and `docs/architecture.md` section 2.
 
 For local development and the build-pipeline test in
-`apps/web/tests/content-collection.build.test.ts`, a fixture post is copied
+`apps/web/src/content-collection.build.test.ts`, a fixture post is copied
 in temporarily from `apps/web/tests/fixtures/` and removed afterwards.
