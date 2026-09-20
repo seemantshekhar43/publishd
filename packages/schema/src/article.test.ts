@@ -61,6 +61,20 @@ describe('parseArticleFrontmatter - slug derivation', () => {
     expect(result.slug).toBe('why-i-left-docker-compose-finally');
   });
 
+  it('rejects a title that derives to an empty slug', () => {
+    try {
+      parseArticleFrontmatter({ title: '!!!' });
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(SchemaValidationError);
+      const schemaError = error as SchemaValidationError;
+      expect(schemaError.issues).toContainEqual({
+        path: 'slug',
+        message: 'title "!!!" does not derive to a valid slug; provide an explicit slug',
+      });
+    }
+  });
+
   it('rejects a slug with an invalid shape', () => {
     try {
       parseArticleFrontmatter({ title: 'x', slug: 'My Post' });
