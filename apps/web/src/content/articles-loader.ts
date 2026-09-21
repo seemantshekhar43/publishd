@@ -18,7 +18,11 @@ import {
   type ArticleFrontmatter,
   type ContentStatus,
 } from 'publishd-schema';
-import { rehypeHeadingAnchors, rehypeSidenotes } from '../lib/markdown-plugins.js';
+import {
+  rehypeCallouts,
+  rehypeHeadingAnchors,
+  rehypeSidenotes,
+} from '../lib/markdown-plugins.js';
 import { publishdDarkTheme, publishdLightTheme } from '../lib/shiki-themes.js';
 
 export interface ArticlesLoaderOptions {
@@ -60,7 +64,12 @@ export function createArticlesLoader({
         // rehypeHeadingIds only fills in an id that isn't already set, so
         // the later, automatic pass is a no-op for headings we've already
         // touched.
-        rehypePlugins: [rehypeHeadingIds, rehypeHeadingAnchors, rehypeSidenotes],
+        rehypePlugins: [
+          rehypeHeadingIds,
+          rehypeHeadingAnchors,
+          rehypeSidenotes,
+          rehypeCallouts,
+        ],
       });
 
       store.clear();

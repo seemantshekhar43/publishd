@@ -1,6 +1,10 @@
 import { createMarkdownProcessor, rehypeHeadingIds } from '@astrojs/markdown-remark';
 import { describe, expect, it } from 'vitest';
-import { rehypeHeadingAnchors, rehypeSidenotes } from './markdown-plugins.js';
+import {
+  rehypeCallouts,
+  rehypeHeadingAnchors,
+  rehypeSidenotes,
+} from './markdown-plugins.js';
 
 // Exercises the plugins through the real processor, with the same plugin
 // order posts-loader.ts uses - a unit-level unified pipeline assembled by
@@ -87,5 +91,51 @@ describe('rehypeSidenotes', () => {
   it('does nothing when there are no footnotes', async () => {
     const html = await render('Just a plain paragraph.');
     expect(html).not.toContain('sidenote');
+  });
+});
+
+describe('rehypeCallouts', () => {
+  async function renderWithCallouts(markdown: string) {
+    const processor = await createMarkdownProcessor({
+      rehypePlugins: [
+        rehypeHeadingIds,
+        rehypeHeadingAnchors,
+        rehypeSidenotes,
+        rehypeCallouts,
+      ],
+    });
+    return (await processor.render(markdown)).code;
+  }
+
+  it('turns a `[!note]` blockquote into an admonition div', async () => {
+    const html = await renderWithCallouts('> [!note]\n> Something worth knowing.');
+    expect(html).toContain('<div class="admonition" data-type="note">');
+    expect(html).toContain('class="admonition-title">Note</p>');
+    expect(html).toContain('Something worth knowing.');
+    expect(html).not.toContain('<blockquote>');
+  });
+
+  it('uses a custom title when one follows the marker', async () => {
+    const html = await renderWithCallouts('> [!warning] Read this first\n> Body text.');
+    expect(html).toContain('class="admonition-title">Read this first</p>');
+  });
+
+  it('lower-cases the type for data-type regardless of how it was written', async () => {
+    const html = await renderWithCallouts('> [!WARNING]\n> Careful.');
+    expect(html).toContain('data-type="warning"');
+  });
+
+  it('leaves an ordinary blockquote untouched', async () => {
+    const html = await renderWithCallouts('> Just a quotation.');
+    expect(html).toContain('<blockquote>');
+    expect(html).not.toContain('admonition');
+  });
+
+  it('keeps every paragraph after the marker as the admonition body', async () => {
+    const html = await renderWithCallouts(
+      '> [!tip]\n> First line.\n>\n> Second paragraph.',
+    );
+    expect(html).toContain('First line.');
+    expect(html).toContain('Second paragraph.');
   });
 });
