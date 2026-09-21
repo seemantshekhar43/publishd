@@ -34,10 +34,11 @@ async function listFiles(octokit, owner, repo, ref, path, extensions) {
   const files = [];
   for (const entry of entries) {
     if (entry.type === 'dir') {
-      files.push(
-        ...(await listFiles(octokit, owner, repo, ref, entry.path, extensions)),
-      );
-    } else if (entry.type === 'file' && extensions.some((ext) => entry.name.endsWith(ext))) {
+      files.push(...(await listFiles(octokit, owner, repo, ref, entry.path, extensions)));
+    } else if (
+      entry.type === 'file' &&
+      extensions.some((ext) => entry.name.endsWith(ext))
+    ) {
       files.push(entry.path);
     }
   }
@@ -72,7 +73,15 @@ async function clearGeneratedDir(dir) {
  * `localDir`, flat - `pages/<year>/<slug>.html` and `.json` land as
  * `<slug>.html` / `<slug>.json`, matching how `pages-loader.ts` reads them
  * back. Returns the synced paths. */
-async function syncDirectory(octokit, owner, repo, branch, remotePath, localDir, extensions) {
+async function syncDirectory(
+  octokit,
+  owner,
+  repo,
+  branch,
+  remotePath,
+  localDir,
+  extensions,
+) {
   await mkdir(localDir, { recursive: true });
   await clearGeneratedDir(localDir);
 
@@ -81,7 +90,9 @@ async function syncDirectory(octokit, owner, repo, branch, remotePath, localDir,
     paths = await listFiles(octokit, owner, repo, branch, remotePath, extensions);
   } catch (error) {
     if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
-      console.log(`[sync-content] no ${remotePath}/ directory on ${owner}/${repo}@${branch} yet`);
+      console.log(
+        `[sync-content] no ${remotePath}/ directory on ${owner}/${repo}@${branch} yet`,
+      );
       return [];
     }
     throw error;

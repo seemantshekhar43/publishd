@@ -38,7 +38,10 @@ vi.mock('@octokit/rest', () => {
         }
         if (fileContents[path] !== undefined) {
           return {
-            data: { type: 'file', content: Buffer.from(fileContents[path]).toString('base64') },
+            data: {
+              type: 'file',
+              content: Buffer.from(fileContents[path]).toString('base64'),
+            },
           };
         }
         const error = new Error('not found') as Error & { status: number };
