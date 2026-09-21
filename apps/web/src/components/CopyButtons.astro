@@ -1,0 +1,35 @@
+---
+// Adds a copy button to every Shiki code block, shown on hover. A tiny
+// vanilla script rather than a per-block Astro island, since every block
+// needs the exact same behaviour and this keeps the JS budget down. See
+// docs/design.md section 5.
+---
+
+<script>
+  function addCopyButtons(): void {
+    for (const pre of document.querySelectorAll<HTMLPreElement>('.prose pre:not([data-copy-wired])')) {
+      pre.dataset.copyWired = 'true';
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'copy-button';
+      button.textContent = 'Copy';
+      button.setAttribute('aria-label', 'Copy code to clipboard');
+
+      button.addEventListener('click', () => {
+        const code = pre.querySelector('code')?.textContent ?? '';
+        navigator.clipboard.writeText(code).then(() => {
+          button.textContent = 'Copied';
+          setTimeout(() => {
+            button.textContent = 'Copy';
+          }, 1500);
+        });
+      });
+
+      pre.appendChild(button);
+    }
+  }
+
+  addCopyButtons();
+  document.addEventListener('astro:page-load', addCopyButtons);
+</script>

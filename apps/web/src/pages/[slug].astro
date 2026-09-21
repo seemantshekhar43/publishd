@@ -1,35 +1,107 @@
 ---
-// The article furniture (heading anchors, footnotes, TOC, view
-// transitions) is issue #13. This wires the shared tokens and prose
-// container in place of it.
+// The reading surface: meta line, heading anchors, footnote sidenotes, a
+// TOC rail past 6 headings, a chronological next/previous link, and view
+// transitions between here and the homepage. See docs/design.md section 5
+// and docs/PRD.md section 9.6.
 import { getCollection, render, type CollectionEntry } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import CopyButtons from '../components/CopyButtons.astro';
+import { estimateReadingMinutes, formatLongDate } from '../lib/format-date.js';
+
+const TOC_MIN_HEADINGS = 6;
 
 export async function getStaticPaths() {
   // postsLoader() only ever stores published posts - see
   // apps/web/src/content/posts-loader.ts.
   const posts = await getCollection('posts');
-  return posts.map((post) => ({
-    params: { slug: post.data.slug },
-    props: { post },
-  }));
+  // Chronological, not the homepage's `listed`-filtered order - next/prev
+  // should walk every published post.
+  const chronological = [...posts].sort((a, b) => b.data.date.localeCompare(a.data.date));
+
+  return posts.map((post) => {
+    const index = chronological.findIndex((entry) => entry.id === post.id);
+    return {
+      params: { slug: post.data.slug },
+      props: {
+        post,
+        // Newer post comes earlier in the desc-sorted array.
+        newer: index > 0 ? chronological[index - 1] : undefined,
+        older: index < chronological.length - 1 ? chronological[index + 1] : undefined,
+      },
+    };
+  });
 }
 
 interface Props {
   post: CollectionEntry<'posts'>;
+  newer?: CollectionEntry<'posts'>;
+  older?: CollectionEntry<'posts'>;
 }
 
-const { post } = Astro.props;
-const { Content } = await render(post);
+const { post, newer, older } = Astro.props;
+const { Content, headings: allHeadings } = await render(post);
+// remark-gfm's footnotes section has its own (visually hidden, see
+// .sr-only in theme.css) "Footnotes" heading - real content only here.
+const headings = allHeadings.filter((heading) => heading.slug !== 'footnote-label');
+const readingMinutes = estimateReadingMinutes(post.body ?? '');
+const showToc = headings.length > TOC_MIN_HEADINGS;
 ---
 
 <BaseLayout title={post.data.title}>
-  <article class="measure mx-auto">
-    <a href="/" class="text-mute">← home</a>
-    <h1>{post.data.title}</h1>
-    <p class="text-mute">{post.data.date}</p>
-    <div class="prose">
-      <Content />
-    </div>
-  </article>
+  <div
+    class:list={[
+      'mx-auto flex max-w-[calc(68ch+220px+3rem)] items-start gap-12 px-4',
+      { 'has-toc': showToc },
+    ]}
+  >
+    <article class="measure mx-auto min-w-0">
+      <a href="/" class="text-mute">← home</a>
+
+      <p class="mt-6 text-[13px] tracking-wide text-mute uppercase">
+        {post.data.type} · {formatLongDate(post.data.date)} · {readingMinutes} min read
+      </p>
+      <h1 class="mt-2" transition:name={`title-${post.data.slug}`}>{post.data.title}</h1>
+      {post.data.summary && <p class="mt-2 text-mute">{post.data.summary}</p>}
+
+      <hr class="mt-6 border-t border-border" />
+
+      <div class="prose mt-8">
+        <Content />
+      </div>
+
+      {
+        (newer || older) && (
+          <nav class="mt-12 flex justify-between gap-4 border-t border-border pt-6 text-[14px]">
+            <a href={older ? `/${older.data.slug}` : undefined} class:list={{ invisible: !older }}>
+              ← {older?.data.title}
+            </a>
+            <a href={newer ? `/${newer.data.slug}` : undefined} class:list={{ invisible: !newer }}>
+              {newer?.data.title} →
+            </a>
+          </nav>
+        )
+      }
+    </article>
+
+    {
+      showToc && (
+        <nav
+          aria-label="Table of contents"
+          class="sticky top-8 hidden w-[200px] shrink-0 border-l border-border pl-4 text-[13px] leading-relaxed min-[1100px]:block"
+        >
+          <ul class="m-0 list-none p-0">
+            {headings.map((heading) => (
+              <li style={{ paddingLeft: `${(heading.depth - Math.min(...headings.map((h) => h.depth))) * 0.75}rem` }}>
+                <a href={`#${heading.slug}`} class="text-mute">
+                  {heading.text}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )
+    }
+  </div>
+
+  <CopyButtons />
 </BaseLayout>

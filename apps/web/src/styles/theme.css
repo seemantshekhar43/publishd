@@ -100,6 +100,7 @@
     font-family: var(--font-heading);
     font-weight: 600;
     letter-spacing: -0.01em;
+    position: relative;
   }
 
   h1 {
@@ -175,4 +176,128 @@
 .prose :has(> svg) {
   max-width: 76ch;
   overflow-x: auto;
+}
+
+/* Shiki dual-theme output (see posts-loader.ts and lib/shiki-themes.ts):
+   `defaultColor: false` means only these variables carry colour, so
+   highlighting flips with `data-theme` the same way every other token
+   does. Astro renames Shiki's own `.shiki` class to `.astro-code`. */
+.astro-code,
+.astro-code span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .astro-code,
+  :root:not([data-theme='light']) .astro-code span {
+    color: var(--shiki-dark);
+    background-color: var(--shiki-dark-bg);
+  }
+}
+
+:root[data-theme='dark'] .astro-code,
+:root[data-theme='dark'] .astro-code span {
+  color: var(--shiki-dark);
+  background-color: var(--shiki-dark-bg);
+}
+
+/* Copy button, shown on hover of the code block it belongs to - see
+   components/CopyButtons.astro. */
+.prose pre {
+  position: relative;
+}
+
+.copy-button {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.25rem 0.6rem;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--mute);
+  background-color: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.prose pre:hover .copy-button,
+.copy-button:focus-visible {
+  opacity: 1;
+}
+
+/* Heading anchors - hidden until hover, in the left margin above 768px
+   where there is room for one; inline after the heading text below that.
+   See docs/design.md section 5 and lib/markdown-plugins.ts. */
+.heading-anchor {
+  margin-left: 0.5em;
+  color: var(--mute);
+  text-decoration: none;
+  opacity: 0;
+}
+
+h1:hover .heading-anchor,
+h2:hover .heading-anchor,
+h3:hover .heading-anchor,
+.heading-anchor:focus-visible {
+  opacity: 1;
+}
+
+@media (min-width: 768px) {
+  .heading-anchor {
+    position: absolute;
+    left: -1.25em;
+    margin-left: 0;
+  }
+}
+
+/* Footnote sidenotes - inline and parenthesised by default, floated into
+   the right margin above 1100px where the 68ch column leaves room beside
+   it. See docs/design.md section 5 and lib/markdown-plugins.ts. */
+.sidenote {
+  font-size: 13px;
+  color: var(--mute);
+}
+
+.sidenote::before {
+  content: ' (';
+}
+
+.sidenote::after {
+  content: ')';
+}
+
+.sidenote-number {
+  font-size: 0.75em;
+}
+
+@media (min-width: 1100px) {
+  .sidenote {
+    display: block;
+    float: right;
+    clear: right;
+    width: 200px;
+    margin-top: 0.1em;
+    margin-right: -244px;
+    margin-bottom: 1rem;
+    padding-left: 0.75rem;
+    line-height: 1.5;
+    border-left: 1px solid var(--border);
+  }
+
+  .sidenote::before,
+  .sidenote::after {
+    content: none;
+  }
+
+  /* When the article also has a TOC rail (see [slug].astro), that rail
+     sits immediately right of the article in the same margin space a
+     sidenote would float into. Push the sidenote out past the rail too,
+     rather than letting the two overlap. */
+  .has-toc .sidenote {
+    margin-right: calc(-244px - 200px - 3rem);
+  }
 }

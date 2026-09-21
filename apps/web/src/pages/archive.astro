@@ -1,0 +1,28 @@
+---
+// The overflow from the homepage's first 30 entries - compact, one line
+// per item, no year grouping or type chip. See docs/PRD.md section 4.6 and
+// issue #12.
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { formatShortDate } from '../lib/format-date.js';
+
+const listedPosts = await getCollection('posts', ({ data }) => data.listed);
+const posts = listedPosts.sort((a, b) => b.data.date.localeCompare(a.data.date));
+---
+
+<BaseLayout title="Archive">
+  <div class="measure mx-auto">
+    <a href="/" class="text-mute">← home</a>
+    <h1 class="mt-4 font-heading text-[24px] font-semibold">Archive</h1>
+    <ul class="m-0 mt-6 list-none p-0">
+      {
+        posts.map((post) => (
+          <li class="flex items-baseline justify-between gap-4 border-b border-border py-2">
+            <a href={`/${post.data.slug}`}>{post.data.title}</a>
+            <span class="shrink-0 text-[13px] text-mute">{formatShortDate(post.data.date)}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</BaseLayout>

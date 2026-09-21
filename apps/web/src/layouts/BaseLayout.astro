@@ -3,6 +3,7 @@
 // container, and the theme toggle. Page-specific layout (the homepage
 // list, the article furniture) lives in the pages that use this - see
 // issues #12 and #13. See docs/design.md sections 2-5.
+import { ClientRouter } from 'astro:transitions';
 import '../styles/theme.css';
 import ThemeToggle from '../components/ThemeToggle.astro';
 
@@ -28,6 +29,13 @@ const { title } = Astro.props;
     <meta name="theme-color" content="#FDFBF7" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0F0E0C" media="(prefers-color-scheme: dark)" />
     <title>{title}</title>
+    <!--
+      Astro's built-in view transitions - the single most "designed" thing
+      on the site (docs/PRD.md section 9.6). It disables itself under
+      `prefers-reduced-motion` on its own (see the media query in its own
+      viewtransitions.css), so nothing extra is needed here for that.
+    -->
+    <ClientRouter />
     <!--
       The no-flash script. Render-blocking, and deliberately so - it is the
       only render-blocking JS on the site. It must run before first paint,

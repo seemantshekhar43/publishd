@@ -1,0 +1,53 @@
+import { createMarkdownProcessor, rehypeHeadingIds } from '@astrojs/markdown-remark';
+import { describe, expect, it } from 'vitest';
+import { rehypeHeadingAnchors, rehypeSidenotes } from './markdown-plugins.js';
+
+// Exercises the plugins through the real processor, with the same plugin
+// order posts-loader.ts uses - a unit-level unified pipeline assembled by
+// hand would not have caught the bug this guards against: markdown-remark
+// applies its own heading-id pass *after* any `rehypePlugins`, so
+// rehypeHeadingAnchors saw no `id` to link to until rehypeHeadingIds ran
+// first, here, explicitly.
+async function render(markdown: string) {
+  const processor = await createMarkdownProcessor({
+    rehypePlugins: [rehypeHeadingIds, rehypeHeadingAnchors, rehypeSidenotes],
+  });
+  return (await processor.render(markdown)).code;
+}
+
+describe('rehypeHeadingAnchors', () => {
+  it('adds an anchor link matching the heading id', async () => {
+    const html = await render('## The hardware');
+    expect(html).toContain('<h2 id="the-hardware">The hardware<a href="#the-hardware"');
+  });
+
+  it('does not touch the footnotes section heading', async () => {
+    const html = await render('See below.[^1]\n\n[^1]: A note.');
+    expect(html).not.toContain('id="footnote-label"><a href="#footnote-label"');
+  });
+});
+
+describe('rehypeSidenotes', () => {
+  it('inserts a presentational sidenote right after the reference, numbered to match', async () => {
+    const html = await render(
+      'First claim.[^1] Second claim.[^2]\n\n[^1]: About the first.\n[^2]: About the second.',
+    );
+
+    expect(html).toContain('<span class="sidenote" aria-hidden="true">');
+    expect(html).toContain('About the first.');
+    expect(html).toContain('About the second.');
+    // The reference number and the sidenote's own number must match, so a
+    // reader can tell which note goes with which reference.
+    expect(html.indexOf('>1</a></sup><span class="sidenote"')).toBeGreaterThan(-1);
+  });
+
+  it('hides the original footnotes list from sighted users but keeps it for assistive tech', async () => {
+    const html = await render('A claim.[^1]\n\n[^1]: The footnote text.');
+    expect(html).toMatch(/<section[^>]*data-footnotes[^>]*class="[^"]*\bsr-only\b[^"]*"/);
+  });
+
+  it('does nothing when there are no footnotes', async () => {
+    const html = await render('Just a plain paragraph.');
+    expect(html).not.toContain('sidenote');
+  });
+});
