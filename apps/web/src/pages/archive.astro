@@ -11,7 +11,7 @@ const listedPosts = await getCollection('posts', ({ data }) => data.listed);
 const posts = listedPosts.sort((a, b) => b.data.date.localeCompare(a.data.date));
 ---
 
-<BaseLayout title="Archive">
+<BaseLayout title="Archive" description="Every post, one line per item.">
   <div class="measure mx-auto">
     <a href="/" class="text-mute">← home</a>
     <h1 class="mt-4 font-heading text-[24px] font-semibold">Archive</h1>

@@ -7,6 +7,9 @@ import { getCollection, render, type CollectionEntry } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import CopyButtons from '../components/CopyButtons.astro';
 import { estimateReadingMinutes, formatLongDate } from '../lib/format-date.js';
+import { getSiteConfig } from '../../../../site.config.js';
+import { buildBlogPostingJsonLd, resolveCanonicalUrl, resolveOgImagePath } from '../lib/seo.js';
+import { readLastmodMap } from '../lib/lastmod.js';
 
 const TOC_MIN_HEADINGS = 6;
 
@@ -45,9 +48,26 @@ const { Content, headings: allHeadings } = await render(post);
 const headings = allHeadings.filter((heading) => heading.slug !== 'footnote-label');
 const readingMinutes = estimateReadingMinutes(post.body ?? '');
 const showToc = headings.length > TOC_MIN_HEADINGS;
+
+const siteConfig = getSiteConfig();
+const lastmodMap = await readLastmodMap(
+  new URL('../content/.lastmod.json', import.meta.url).pathname,
+);
+const description = post.data.summary ?? siteConfig.bio;
+const canonicalUrl = post.data.canonical ?? resolveCanonicalUrl(siteConfig, `/${post.data.slug}`);
+const ogImagePath = resolveOgImagePath(post.data);
+const jsonLd = buildBlogPostingJsonLd({ siteConfig, post: post.data, lastmodMap });
 ---
 
-<BaseLayout title={post.data.title}>
+<BaseLayout
+  title={post.data.title}
+  description={description}
+  canonicalUrl={canonicalUrl}
+  ogImagePath={ogImagePath}
+  ogType="article"
+  noindex={post.data.status === 'draft'}
+  jsonLd={jsonLd}
+>
   <div
     class:list={[
       'mx-auto flex max-w-[calc(68ch+220px+3rem)] items-start gap-12 px-4',

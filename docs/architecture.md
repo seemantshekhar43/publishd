@@ -213,7 +213,8 @@ Astro 5, static output. Everything below is generated at build and is disposable
 | Search index | Pagefind, ~50KB, indexes the built output |
 | OG images | `satori` + `@resvg/resvg-js`, from title, type, and date |
 | Icons and manifest | Generated from one source SVG |
-| RSS, JSON Feed, sitemap | Astro integrations |
+| RSS | `@astrojs/rss` |
+| JSON Feed, sitemap | Hand-rolled - `@astrojs/sitemap` cannot produce the literal `/sitemap.xml` route section 9.3 specifies, and there is no official Astro helper for JSON Feed |
 
 `lastmod` in the sitemap comes from the **git commit date**, not the build date. Otherwise a rebuild churns every entry and the sitemap becomes noise.
 

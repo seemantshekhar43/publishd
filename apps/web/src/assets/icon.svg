@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!--
+    The one source mark every icon size (favicon, touch icon, maskable
+    PWA icons) is generated from at build - see src/lib/icons.ts and
+    issue #17. A single accent dot on the cream ground: the same
+    "two neutrals plus one accent" discipline as the rest of the design
+    system (docs/PRD.md section 9.1), so it reads as a mark rather than
+    a logotype needing its own design pass.
+  -->
+  <rect width="512" height="512" rx="96" fill="#FDFBF7" />
+  <circle cx="256" cy="256" r="152" fill="#A8480B" />
+</svg>
