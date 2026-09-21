@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { derivePreviewId } from './lib/preview.js';
 import { getSiteConfig } from '../../../site.config.js';
 
 const siteUrl = getSiteConfig().url;
@@ -26,11 +27,17 @@ const distDir = fileURLToPath(new URL('../dist/client/', import.meta.url));
 const publishedFixture = `${postsDir}published-post.md`;
 const draftFixture = `${postsDir}draft-post.md`;
 
+const PREVIEW_SECRET = 'build-test-preview-secret';
+
 beforeAll(() => {
   mkdirSync(postsDir, { recursive: true });
   execFileSync('cp', [`${fixturesDir}published-post.md`, publishedFixture]);
   execFileSync('cp', [`${fixturesDir}draft-post.md`, draftFixture]);
-  execFileSync('pnpm', ['exec', 'astro', 'build'], { cwd: webRoot, stdio: 'pipe' });
+  execFileSync('pnpm', ['exec', 'astro', 'build'], {
+    cwd: webRoot,
+    stdio: 'pipe',
+    env: { ...process.env, PUBLISHD_PREVIEW_SECRET: PREVIEW_SECRET },
+  });
 }, 120_000);
 
 afterAll(() => {
@@ -46,8 +53,18 @@ describe('the content-collection build pipeline', () => {
     expect(html).toContain('A Test Fixture Post');
   });
 
-  it('excludes the draft fixture from the build output', () => {
+  it('excludes the draft fixture from /<slug> - a draft is unreachable there', () => {
     expect(existsSync(`${distDir}a-draft-fixture-post`)).toBe(false);
+  });
+
+  it('renders the draft fixture at its stable /preview/<uuid> URL instead (issue #18)', () => {
+    const previewId = derivePreviewId('a-draft-fixture-post', PREVIEW_SECRET);
+    const outputPath = `${distDir}preview/${previewId}/index.html`;
+    expect(existsSync(outputPath)).toBe(true);
+    const html = readFileSync(outputPath, 'utf-8');
+    expect(html).toContain('A Draft Fixture Post');
+    expect(html).toContain('<meta name="robots" content="noindex, nofollow">');
+    expect(html).toContain('Draft');
   });
 
   it('lists the published fixture on the homepage, unlisted otherwise excluded', () => {
@@ -103,6 +120,12 @@ describe('per-page SEO surface (issue #17)', () => {
     const sitemap = readFileSync(`${distDir}sitemap.xml`, 'utf-8');
     expect(sitemap).toContain(`<loc>${siteUrl}/a-test-fixture-post</loc>`);
     expect(sitemap).not.toContain('draft-fixture-post');
+    expect(sitemap).not.toContain('/preview/');
+
+    const rss = readFileSync(`${distDir}rss.xml`, 'utf-8');
+    expect(rss).not.toContain('/preview/');
+    const feed = readFileSync(`${distDir}feed.json`, 'utf-8');
+    expect(feed).not.toContain('/preview/');
   });
 
   it('generates the icon and manifest surfaces from issue #17', () => {

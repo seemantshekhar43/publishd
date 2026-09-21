@@ -124,7 +124,7 @@ draft  ->  published  ->  archived
 | `published` | `/<slug>` | Yes, unless `listed: false` | Indexed |
 | `archived` | `/<slug>` returns **410 Gone** | No | - |
 
-The preview UUID is stable per slug, so re-publishing a draft keeps the same shareable link. It is random and unguessable, not derived from the slug.
+The preview UUID is stable per slug, so re-publishing a draft keeps the same shareable link. It is derived deterministically as an HMAC-SHA256 of the slug keyed by the server-only `PUBLISHD_PREVIEW_SECRET` env var (see `apps/web/src/lib/preview.ts`), not a randomly generated id persisted anywhere - the HMAC keeps it unguessable, since the slug alone gives an attacker nothing without the secret. If `PUBLISHD_PREVIEW_SECRET` is unset, publishing a draft is refused (500) and the drafts loader yields no entries.
 
 `archived` returns 410 rather than 404 deliberately: 410 tells a crawler the resource is intentionally gone, so it drops from the index faster and does not look like a broken site.
 

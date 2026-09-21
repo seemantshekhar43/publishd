@@ -242,6 +242,7 @@ Secrets never live here. They are environment variables:
 | --- | --- | --- |
 | `PUBLISHD_TOKENS` | Vercel | Hashed ingest tokens |
 | `GITHUB_TOKEN` | Vercel | Commit access to the content repo |
+| `PUBLISHD_PREVIEW_SECRET` | Vercel | HMAC key deriving each draft's stable `/preview/<uuid>` id - see docs/content-schema.md section 4. Needed by both the ingest endpoint and the site build, so it must be set for build environments too, not only serverless functions. |
 | `PUBLISHD_CONTENT_BRANCH` | Vercel | Overrides `content.branch` - lets a staging deployment target a different content branch than production, without touching `site.config.ts` |
 | `PUBLISHD_ENDPOINT` | Client | Overrides the configured endpoint |
 | `PUBLISHD_TOKEN` | Client | The client's bearer token |
