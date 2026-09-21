@@ -1,0 +1,68 @@
+---
+// The shared shell: tokens, type scale, the single-column reading
+// container, and the theme toggle. Page-specific layout (the homepage
+// list, the article furniture) lives in the pages that use this - see
+// issues #12 and #13. See docs/design.md sections 2-5.
+import '../styles/theme.css';
+import ThemeToggle from '../components/ThemeToggle.astro';
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--
+      Two variants, media-matched, so the OS-default case (no explicit
+      choice) gets the right browser-chrome colour with no JS needed. The
+      no-flash script below collapses these to one when an explicit choice
+      overrides the OS preference. Values must stay in sync with the
+      `--bg` token in theme.css - a literal here is unavoidable, since a
+      CSS custom property cannot be read from a `<meta>` attribute.
+    -->
+    <meta name="theme-color" content="#FDFBF7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0F0E0C" media="(prefers-color-scheme: dark)" />
+    <title>{title}</title>
+    <!--
+      The no-flash script. Render-blocking, and deliberately so - it is the
+      only render-blocking JS on the site. It must run before first paint,
+      inline, in <head>, ahead of the stylesheet that defines the tokens.
+      Do not defer it, bundle it, move it to a <script> file, or add
+      `is:inline` elsewhere without this same ordering. See
+      docs/design.md section 5.
+    -->
+    <script is:inline>
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme');
+          if (stored === 'light' || stored === 'dark') {
+            document.documentElement.setAttribute('data-theme', stored);
+            var metas = document.querySelectorAll('meta[name="theme-color"]');
+            metas.forEach(function (meta, index) {
+              meta.removeAttribute('media');
+              meta.setAttribute('content', stored === 'dark' ? '#0F0E0C' : '#FDFBF7');
+              if (index > 0) meta.remove();
+            });
+          }
+        } catch (e) {
+          // localStorage unavailable - fall back to the OS preference,
+          // which the CSS media query and the meta tags above already
+          // handle without any JS.
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <header class="measure mx-auto flex items-center justify-end px-4 py-4">
+      <ThemeToggle />
+    </header>
+    <main class="mx-auto px-4 pb-16">
+      <slot />
+    </main>
+  </body>
+</html>

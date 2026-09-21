@@ -1,7 +1,8 @@
 ---
-// Deliberately unstyled - M1 proves the pipeline, not the design. See
-// docs/roadmap.md ("resist styling it") and issue #8.
+// The reading-list layout (year grouping, bio line, hover summaries) is
+// issue #12. This wires the shared tokens and container in place of it.
 import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
 
 // postsLoader() only ever stores published posts - see
 // apps/web/src/content/posts-loader.ts. listed: false still gets a page,
@@ -10,28 +11,22 @@ const listedPosts = await getCollection('posts', ({ data }) => data.listed);
 const posts = listedPosts.sort((a, b) => b.data.date.localeCompare(a.data.date));
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>publishd</title>
-  </head>
-  <body>
-    <main>
-      <h1>publishd</h1>
-      {
-        posts.length === 0 ? (
-          <p>Nothing published yet.</p>
-        ) : (
-          <ul>
-            {posts.map((post) => (
-              <li>
-                <a href={`/${post.data.slug}`}>{post.data.title}</a> - {post.data.date}
-              </li>
-            ))}
-          </ul>
-        )
-      }
-    </main>
-  </body>
-</html>
+<BaseLayout title="publishd">
+  <div class="measure mx-auto">
+    <h1>publishd</h1>
+    {
+      posts.length === 0 ? (
+        <p class="text-mute">Nothing published yet.</p>
+      ) : (
+        <ul class="list-none p-0">
+          {posts.map((post) => (
+            <li class="border-b border-border py-3">
+              <a href={`/${post.data.slug}`}>{post.data.title}</a>
+              <span class="text-mute text-[14px] font-[450]"> - {post.data.date}</span>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+</BaseLayout>

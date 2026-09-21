@@ -1,6 +1,9 @@
 ---
-// Deliberately unstyled - see docs/roadmap.md and issue #8.
+// The article furniture (heading anchors, footnotes, TOC, view
+// transitions) is issue #13. This wires the shared tokens and prose
+// container in place of it.
 import { getCollection, render, type CollectionEntry } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
 
 export async function getStaticPaths() {
   // postsLoader() only ever stores published posts - see
@@ -20,18 +23,13 @@ const { post } = Astro.props;
 const { Content } = await render(post);
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{post.data.title}</title>
-  </head>
-  <body>
-    <main>
-      <a href="/">← home</a>
-      <h1>{post.data.title}</h1>
-      <p>{post.data.date}</p>
+<BaseLayout title={post.data.title}>
+  <article class="measure mx-auto">
+    <a href="/" class="text-mute">← home</a>
+    <h1>{post.data.title}</h1>
+    <p class="text-mute">{post.data.date}</p>
+    <div class="prose">
       <Content />
-    </main>
-  </body>
-</html>
+    </div>
+  </article>
+</BaseLayout>
