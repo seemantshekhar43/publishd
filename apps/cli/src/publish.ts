@@ -3,6 +3,7 @@
  * the URL. See docs/PRD.md section 8.4 and docs/architecture.md section 4.
  */
 
+import { dirname } from 'node:path';
 import matter from 'gray-matter';
 import {
   parseArticleFrontmatter,
@@ -12,6 +13,12 @@ import {
   type ContentStatus,
   type ContentType,
 } from 'publishd-schema';
+import {
+  findVaultRoot,
+  resolveEmbeds,
+  type AssetFs,
+  type AssetPayload,
+} from './assets.js';
 import type { PollOptions } from './poll.js';
 
 export interface PublishOptions {
@@ -27,6 +34,7 @@ export interface PublishOptions {
 
 export interface Logger {
   info(message: string): void;
+  warn(message: string): void;
   error(message: string): void;
 }
 
@@ -51,6 +59,8 @@ export interface PublishDeps {
     headers?: Record<string, string>,
   ): Promise<void>;
   openUrl(url: string): void;
+  /** Reads embedded images off disk - see apps/cli/src/assets.ts and issue #20. */
+  assetFs: AssetFs;
 }
 
 interface IngestResponseBody {
@@ -107,10 +117,35 @@ export async function runPublish(
     throw error;
   }
 
+  // Reading from stdin means no file, and no file means no vault to
+  // resolve embeds against - skip rather than guess a directory.
+  let body = content;
+  let assets: AssetPayload[] = [];
+  if (options.filePath !== '-') {
+    const fileDir = dirname(options.filePath);
+    const vaultRoot = await findVaultRoot(deps.assetFs, fileDir);
+    const resolved = await resolveEmbeds(deps.assetFs, content, {
+      fileDir,
+      vaultRoot,
+      slug: frontmatter.slug,
+    });
+    body = resolved.body;
+    assets = resolved.assets;
+    for (const warning of resolved.warnings) {
+      deps.log.warn(warning);
+    }
+  }
+
   if (options.dryRun) {
     deps.log.info('Resolved frontmatter:');
     deps.log.info(JSON.stringify(frontmatter, null, 2));
     deps.log.info('');
+    if (assets.length > 0) {
+      deps.log.info(
+        `Would upload ${assets.length} asset(s): ${assets.map((a) => a.path).join(', ')}`,
+      );
+      deps.log.info('');
+    }
     deps.log.info(`Would POST to ${deps.endpoint}/api/ingest. Nothing was sent.`);
     return 0;
   }
@@ -126,7 +161,7 @@ export async function runPublish(
       'content-type': 'application/json',
       ...bypassHeaders,
     },
-    body: JSON.stringify({ kind: 'article', frontmatter, body: content }),
+    body: JSON.stringify({ kind: 'article', frontmatter, body, assets }),
   });
 
   if (!response.ok) {

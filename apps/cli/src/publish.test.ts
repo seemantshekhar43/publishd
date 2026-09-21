@@ -39,14 +39,24 @@ function buildDeps(overrides: Partial<PublishDeps> = {}) {
     token: 'super-secret-token',
     pollUntilLive: vi.fn().mockResolvedValue(undefined),
     openUrl: vi.fn(),
+    assetFs: {
+      readBytes: vi.fn().mockRejectedValue(new Error('no assets in this fixture')),
+      exists: vi.fn().mockResolvedValue(false),
+    },
     ...overrides,
     // After the spread, so `deps.log.info.mock` stays typed even though
     // `overrides` is typed as the widened `Partial<PublishDeps>`.
     log: {
       info: vi.fn<(message: string) => void>(),
+      warn: vi.fn<(message: string) => void>(),
       error: vi.fn<(message: string) => void>(),
     },
   };
+}
+
+async function sentBody(fetchImpl: Mock): Promise<Record<string, unknown>> {
+  const [, requestInit] = fetchImpl.mock.calls[0] as [string, RequestInit];
+  return JSON.parse(requestInit.body as string) as Record<string, unknown>;
 }
 
 describe('runPublish', () => {
@@ -181,6 +191,77 @@ describe('runPublish', () => {
       undefined,
       { 'x-vercel-protection-bypass': 'bypass-secret' },
     );
+  });
+
+  it('sends an empty assets array when the note has no embeds', async () => {
+    const deps = buildDeps();
+
+    await runPublish(buildOptions(), deps);
+
+    const body = await sentBody(deps.fetchImpl as Mock);
+    expect(body.assets).toEqual([]);
+    expect(body.body).toContain('Body text.');
+  });
+
+  it('resolves an embedded image against the vault root, uploads it, and rewrites the body', async () => {
+    const imageBytes = Buffer.from('fake-png-bytes');
+    const deps = buildDeps({
+      readFileContent: vi
+        .fn()
+        .mockResolvedValue(
+          articleMarkdown.replace('Body text.', 'Body ![[image.png]] text.'),
+        ),
+      assetFs: {
+        exists: vi
+          .fn()
+          .mockImplementation((path: string) =>
+            Promise.resolve(path === '/vault/.obsidian' || path === '/vault/image.png'),
+          ),
+        readBytes: vi.fn().mockResolvedValue(imageBytes),
+      },
+    });
+
+    await runPublish(buildOptions({ filePath: '/vault/note.md' }), deps);
+
+    const body = await sentBody(deps.fetchImpl as Mock);
+    expect(body.assets).toEqual([
+      {
+        path: 'image.png',
+        contentType: 'image/png',
+        data: imageBytes.toString('base64'),
+      },
+    ]);
+    expect(body.body).toBe(
+      '\n# Hello\n\nBody ![](/assets/hello-world/image.png) text.\n',
+    );
+  });
+
+  it('warns but still publishes when an embedded asset is missing', async () => {
+    const deps = buildDeps({
+      readFileContent: vi
+        .fn()
+        .mockResolvedValue(articleMarkdown.replace('Body text.', '![[missing.png]]')),
+    });
+
+    const exitCode = await runPublish(buildOptions({ filePath: '/vault/note.md' }), deps);
+
+    expect(exitCode).toBe(0);
+    expect(deps.log.warn).toHaveBeenCalledWith(expect.stringContaining('missing.png'));
+  });
+
+  it('does not attempt embed resolution when reading from stdin', async () => {
+    const deps = buildDeps({
+      readStdin: vi
+        .fn()
+        .mockResolvedValue(articleMarkdown.replace('Body text.', '![[image.png]]')),
+    });
+
+    const exitCode = await runPublish(buildOptions({ filePath: '-' }), deps);
+
+    expect(exitCode).toBe(0);
+    expect(deps.assetFs.exists).not.toHaveBeenCalled();
+    const body = await sentBody(deps.fetchImpl as Mock);
+    expect(body.body).toContain('![[image.png]]');
   });
 
   it('reports a non-2xx ingest response as an error, naming the server-provided reason', async () => {

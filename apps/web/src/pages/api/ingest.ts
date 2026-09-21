@@ -15,6 +15,8 @@ import { extractBearerToken, hashToken, resolveClient } from '../../lib/auth.js'
 import { checkRateLimit, PUBLISHES_PER_HOUR } from '../../lib/rate-limit.js';
 import {
   commitArticle,
+  octokitAdapter,
+  type AssetInput,
   type ContentRepoOctokit,
   type ContentRepoTarget,
 } from '../../lib/content-repo.js';
@@ -23,6 +25,7 @@ interface IngestPayload {
   kind: string;
   frontmatter: unknown;
   body: string;
+  assets: AssetInput[];
 }
 
 export interface IngestHandlerDeps {
@@ -60,6 +63,47 @@ function jsonResponse(status: number, body: unknown): Response {
   });
 }
 
+/**
+ * `asset.path` is joined directly into `assets/<slug>/<path>` by
+ * `assetPath()` in content-repo.ts with no normalisation, so this is the
+ * only place a `..` segment or an absolute path gets rejected before it can
+ * reach the GitHub commit.
+ */
+function isSafeAssetPath(path: string): boolean {
+  if (path.length === 0 || path.startsWith('/') || path.includes('\\')) {
+    return false;
+  }
+  return path
+    .split('/')
+    .every((segment) => segment !== '' && segment !== '.' && segment !== '..');
+}
+
+function parseAssets(value: unknown): AssetInput[] | undefined {
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const assets: AssetInput[] = [];
+  for (const entry of value) {
+    if (
+      typeof entry !== 'object' ||
+      entry === null ||
+      typeof (entry as Record<string, unknown>).path !== 'string' ||
+      !isSafeAssetPath((entry as { path: string }).path) ||
+      typeof (entry as Record<string, unknown>).data !== 'string'
+    ) {
+      return undefined;
+    }
+    assets.push({
+      path: (entry as { path: string }).path,
+      data: (entry as { data: string }).data,
+    });
+  }
+  return assets;
+}
+
 function parseIngestPayload(
   payload: unknown,
 ): { ok: true; value: IngestPayload } | { ok: false } {
@@ -70,12 +114,17 @@ function parseIngestPayload(
   if (typeof candidate.kind !== 'string' || typeof candidate.body !== 'string') {
     return { ok: false };
   }
+  const assets = parseAssets(candidate.assets);
+  if (assets === undefined) {
+    return { ok: false };
+  }
   return {
     ok: true,
     value: {
       kind: candidate.kind,
       frontmatter: candidate.frontmatter,
       body: candidate.body,
+      assets,
     },
   };
 }
@@ -146,6 +195,7 @@ export function createIngestHandler(deps: IngestHandlerDeps): APIRoute {
         target: deps.target,
         frontmatter,
         body: payload.value.body,
+        assets: payload.value.assets,
       });
       console.log(
         `[ingest] client=${client} ${result.operation} slug=${frontmatter.slug}`,
@@ -179,7 +229,7 @@ const siteConfig = getSiteConfig();
 
 export const POST: APIRoute = createIngestHandler({
   tokenHashesJson: process.env.PUBLISHD_TOKENS,
-  octokit: new Octokit({ auth: process.env.GITHUB_TOKEN }).rest.repos,
+  octokit: octokitAdapter(new Octokit({ auth: process.env.GITHUB_TOKEN })),
   previewSecret: process.env.PUBLISHD_PREVIEW_SECRET,
   target: {
     owner: siteConfig.content.repo.split('/')[0] ?? '',
