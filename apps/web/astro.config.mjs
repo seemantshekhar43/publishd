@@ -3,8 +3,9 @@ import { defineConfig } from 'astro/config';
 import vercel from '@astrojs/vercel';
 import tailwindcss from '@tailwindcss/vite';
 
-// Static output for the site; the /api/ingest route opts into on-demand
-// rendering itself (`export const prerender = false`). See issue #8 and
+// Static output for the site; /api/ingest, /api/list, /api/unpublish, and
+// the [...slug] archived/unknown-slug fallback opt into on-demand rendering
+// themselves (`export const prerender = false`). See issue #8 and
 // docs/architecture.md section 7 - M1 is deliberately unstyled.
 //
 // No `site` option here, and no @astrojs/sitemap integration: /rss.xml,

@@ -83,7 +83,7 @@ publishd/
   packages/
     schema/              zod frontmatter schema + Obsidian normalisers
   integrations/
-    obsidian-plugin/     deferred to M5
+    obsidian/            shell-command integration (v1); a real plugin is deferred to M5
     skill/               SKILL.md - agent-agnostic
   docs/
   site.config.ts         all deployment-specific identity
