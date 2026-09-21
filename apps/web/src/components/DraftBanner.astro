@@ -1,0 +1,14 @@
+---
+// Marks a /preview/<uuid> page as a draft. Uses the single existing accent
+// token rather than a new semantic colour - docs/design.md section 3 rules
+// out a second accent - paired with the label text itself as the
+// non-colour cue.
+---
+
+<div
+  class="mx-auto mb-6 flex max-w-[68ch] items-center gap-2 rounded-md border border-accent/40 bg-accent/10 px-4 py-2 text-[13px] text-text"
+  role="status"
+>
+  <strong class="font-heading font-semibold text-accent">Draft</strong>
+  <span class="text-mute">- visible only to people with this link. Not indexed, not in any feed.</span>
+</div>

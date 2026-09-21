@@ -1,0 +1,88 @@
+---
+// The draft-preview reading surface, at /preview/<uuid> per
+// docs/content-schema.md section 4 and issue #18. Deliberately not a
+// stripped-down [slug].astro: no next/prev nav (there's no chronology
+// among drafts) and no per-post OG image or JSON-LD (the page is noindex
+// and has no canonical public URL to attach them to).
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import DraftBanner from '../../components/DraftBanner.astro';
+import CopyButtons from '../../components/CopyButtons.astro';
+import { estimateReadingMinutes, formatLongDate } from '../../lib/format-date.js';
+
+const TOC_MIN_HEADINGS = 6;
+
+export async function getStaticPaths() {
+  // draftsLoader() only ever stores drafts, each carrying the previewId it
+  // was published under - see apps/web/src/content/drafts-loader.ts.
+  const drafts = await getCollection('drafts');
+
+  return drafts
+    .filter((draft) => typeof draft.data.previewId === 'string')
+    .map((draft) => ({
+      params: { uuid: draft.data.previewId as string },
+      props: { post: draft },
+    }));
+}
+
+interface Props {
+  post: CollectionEntry<'drafts'>;
+}
+
+const { post } = Astro.props;
+const { Content, headings: allHeadings } = await render(post);
+const headings = allHeadings.filter((heading) => heading.slug !== 'footnote-label');
+const readingMinutes = estimateReadingMinutes(post.body ?? '');
+const showToc = headings.length > TOC_MIN_HEADINGS;
+
+const title = post.data.title as string;
+const description = (post.data.summary as string | undefined) ?? title;
+---
+
+<BaseLayout title={title} description={description} noindex={true}>
+  <div
+    class:list={[
+      'mx-auto flex max-w-[calc(68ch+220px+3rem)] items-start gap-12 px-4',
+      { 'has-toc': showToc },
+    ]}
+  >
+    <article class="measure mx-auto min-w-0">
+      <a href="/" class="text-mute">← home</a>
+
+      <DraftBanner />
+
+      <p class="mt-6 text-[13px] tracking-wide text-mute uppercase">
+        {post.data.type} · {formatLongDate(post.data.date)} · {readingMinutes} min read
+      </p>
+      <h1 class="mt-2">{title}</h1>
+      {post.data.summary && <p class="mt-2 text-mute">{post.data.summary}</p>}
+
+      <hr class="mt-6 border-t border-border" />
+
+      <div class="prose mt-8">
+        <Content />
+      </div>
+    </article>
+
+    {
+      showToc && (
+        <nav
+          aria-label="Table of contents"
+          class="sticky top-8 hidden w-[200px] shrink-0 border-l border-border pl-4 text-[13px] leading-relaxed min-[1100px]:block"
+        >
+          <ul class="m-0 list-none p-0">
+            {headings.map((heading) => (
+              <li style={{ paddingLeft: `${(heading.depth - Math.min(...headings.map((h) => h.depth))) * 0.75}rem` }}>
+                <a href={`#${heading.slug}`} class="text-mute">
+                  {heading.text}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )
+    }
+  </div>
+
+  <CopyButtons />
+</BaseLayout>

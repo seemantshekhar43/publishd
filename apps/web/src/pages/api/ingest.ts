@@ -9,6 +9,7 @@ import {
   SchemaValidationError,
   type ArticleFrontmatter,
 } from 'publishd-schema';
+import { derivePreviewId } from '../../lib/preview.js';
 import { getSiteConfig } from '../../../../../site.config.js';
 import { extractBearerToken, hashToken, resolveClient } from '../../lib/auth.js';
 import { checkRateLimit, PUBLISHES_PER_HOUR } from '../../lib/rate-limit.js';
@@ -29,7 +30,27 @@ export interface IngestHandlerDeps {
   octokit: ContentRepoOctokit;
   target: ContentRepoTarget;
   siteUrl: string;
+  /** Required to publish a draft - see docs/content-schema.md section 4. */
+  previewSecret: string | undefined;
   now?: () => number;
+}
+
+/** The URL an author is handed back after publishing, per status. */
+export function resolvePublishedUrl(
+  siteUrl: string,
+  frontmatter: Pick<ArticleFrontmatter, 'status' | 'slug'>,
+  previewSecret: string | undefined,
+): { ok: true; url: string } | { ok: false } {
+  if (frontmatter.status !== 'draft') {
+    return { ok: true, url: `${siteUrl}/${frontmatter.slug}` };
+  }
+  if (!previewSecret) {
+    return { ok: false };
+  }
+  return {
+    ok: true,
+    url: `${siteUrl}/preview/${derivePreviewId(frontmatter.slug, previewSecret)}`,
+  };
 }
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -111,6 +132,15 @@ export function createIngestHandler(deps: IngestHandlerDeps): APIRoute {
       throw error;
     }
 
+    // Resolved before committing: a draft this server cannot mint a
+    // preview link for is not published at all, rather than committed with
+    // no way to share it.
+    const published = resolvePublishedUrl(deps.siteUrl, frontmatter, deps.previewSecret);
+    if (!published.ok) {
+      console.error('[ingest] PUBLISHD_PREVIEW_SECRET is not configured');
+      return jsonResponse(500, { error: 'server is not configured to publish drafts' });
+    }
+
     try {
       const result = await commitArticle(deps.octokit, {
         target: deps.target,
@@ -121,7 +151,7 @@ export function createIngestHandler(deps: IngestHandlerDeps): APIRoute {
         `[ingest] client=${client} ${result.operation} slug=${frontmatter.slug}`,
       );
       return jsonResponse(200, {
-        url: `${deps.siteUrl}/${frontmatter.slug}`,
+        url: published.url,
         slug: frontmatter.slug,
         operation: result.operation,
         commit: result.commitSha,
@@ -150,6 +180,7 @@ const siteConfig = getSiteConfig();
 export const POST: APIRoute = createIngestHandler({
   tokenHashesJson: process.env.PUBLISHD_TOKENS,
   octokit: new Octokit({ auth: process.env.GITHUB_TOKEN }).rest.repos,
+  previewSecret: process.env.PUBLISHD_PREVIEW_SECRET,
   target: {
     owner: siteConfig.content.repo.split('/')[0] ?? '',
     repo: siteConfig.content.repo.split('/')[1] ?? '',

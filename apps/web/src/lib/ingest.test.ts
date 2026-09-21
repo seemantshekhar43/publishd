@@ -31,6 +31,7 @@ function buildDeps(overrides: Partial<IngestHandlerDeps> = {}): IngestHandlerDep
     },
     target,
     siteUrl: 'https://publish.example.test',
+    previewSecret: 'test-preview-secret',
     ...overrides,
   };
 }
@@ -102,12 +103,15 @@ describe('POST /api/ingest', () => {
     expect(deps.octokit.createOrUpdateFileContents).not.toHaveBeenCalled();
   });
 
-  it('commits a valid article and returns the final URL', async () => {
+  it('commits a valid published article and returns its live URL', async () => {
     const deps = buildDeps();
     const handler = createIngestHandler(deps);
 
     const response = await handler({
-      request: request(validPayload),
+      request: request({
+        ...validPayload,
+        frontmatter: { ...validPayload.frontmatter, status: 'published' },
+      }),
     } as Parameters<typeof handler>[0]);
 
     expect(response.status).toBe(200);
@@ -121,6 +125,51 @@ describe('POST /api/ingest', () => {
     );
     expect(json.operation).toBe('create');
     expect(deps.octokit.createOrUpdateFileContents).toHaveBeenCalledOnce();
+  });
+
+  it('commits a draft and returns a stable /preview/<uuid> URL instead of its slug', async () => {
+    const deps = buildDeps();
+    const handler = createIngestHandler(deps);
+
+    const response = await handler({
+      request: request({
+        ...validPayload,
+        frontmatter: { ...validPayload.frontmatter, status: 'draft' },
+      }),
+    } as Parameters<typeof handler>[0]);
+
+    expect(response.status).toBe(200);
+    const json = (await response.json()) as { url: string };
+    expect(json.url).toMatch(
+      /^https:\/\/publish\.example\.test\/preview\/[0-9a-f-]{36}$/,
+    );
+    expect(json.url).not.toContain('running-kubernetes-on-a-beelink-cluster');
+
+    // Republishing the same slug as a draft again yields the exact same
+    // preview URL - the whole point of a deterministic id (issue #18).
+    const second = await handler({
+      request: request({
+        ...validPayload,
+        frontmatter: { ...validPayload.frontmatter, status: 'draft' },
+      }),
+    } as Parameters<typeof handler>[0]);
+    const secondJson = (await second.json()) as { url: string };
+    expect(secondJson.url).toBe(json.url);
+  });
+
+  it('refuses to publish a draft when PUBLISHD_PREVIEW_SECRET is not configured', async () => {
+    const deps = buildDeps({ previewSecret: undefined });
+    const handler = createIngestHandler(deps);
+
+    const response = await handler({
+      request: request({
+        ...validPayload,
+        frontmatter: { ...validPayload.frontmatter, status: 'draft' },
+      }),
+    } as Parameters<typeof handler>[0]);
+
+    expect(response.status).toBe(500);
+    expect(deps.octokit.createOrUpdateFileContents).not.toHaveBeenCalled();
   });
 
   it('republishing the same slug produces an update commit, not a duplicate file', async () => {
