@@ -7,14 +7,23 @@
  */
 
 import { realpathSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { defineCommand, runMain } from 'citty';
 import consola from 'consola';
+import type { AssetFs } from './assets.js';
 import { loadConfig, resolveProfile } from './config.js';
 import { openUrl } from './open.js';
 import { pollUntilLive } from './poll.js';
 import { runPublish } from './publish.js';
+
+const nodeAssetFs: AssetFs = {
+  readBytes: (path) => readFile(path),
+  exists: (path) =>
+    stat(path)
+      .then(() => true)
+      .catch(() => false),
+};
 
 export const CLI_NAME = 'publishd';
 export const CLI_VERSION = '0.0.0';
@@ -90,6 +99,7 @@ export const command = defineCommand({
         log: consola,
         pollUntilLive,
         openUrl,
+        assetFs: nodeAssetFs,
       },
     );
 

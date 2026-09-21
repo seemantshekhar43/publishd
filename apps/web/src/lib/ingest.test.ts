@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashToken } from './auth.js';
 import { resetRateLimitsForTests, PUBLISHES_PER_HOUR } from './rate-limit.js';
+import type { ContentRepoOctokit } from './content-repo.js';
 import {
   createIngestHandler,
   resolveContentBranch,
@@ -20,15 +21,23 @@ function notFound(): never {
   throw error;
 }
 
+function buildOctokit(overrides: Partial<ContentRepoOctokit> = {}): ContentRepoOctokit {
+  return {
+    getContent: vi.fn().mockImplementation(notFound),
+    getRef: vi.fn().mockResolvedValue({ data: { object: { sha: 'head-sha' } } }),
+    getCommit: vi.fn().mockResolvedValue({ data: { tree: { sha: 'base-tree-sha' } } }),
+    createBlob: vi.fn().mockResolvedValue({ data: { sha: 'blob-sha' } }),
+    createTree: vi.fn().mockResolvedValue({ data: { sha: 'tree-sha' } }),
+    createCommit: vi.fn().mockResolvedValue({ data: { sha: 'abc123' } }),
+    updateRef: vi.fn().mockResolvedValue({}),
+    ...overrides,
+  };
+}
+
 function buildDeps(overrides: Partial<IngestHandlerDeps> = {}): IngestHandlerDeps {
   return {
     tokenHashesJson,
-    octokit: {
-      getContent: vi.fn().mockImplementation(notFound),
-      createOrUpdateFileContents: vi
-        .fn()
-        .mockResolvedValue({ data: { commit: { sha: 'abc123' } } }),
-    },
+    octokit: buildOctokit(),
     target,
     siteUrl: 'https://publish.example.test',
     previewSecret: 'test-preview-secret',
@@ -67,7 +76,7 @@ describe('POST /api/ingest', () => {
     } as Parameters<typeof handler>[0]);
 
     expect(response.status).toBe(401);
-    expect(deps.octokit.createOrUpdateFileContents).not.toHaveBeenCalled();
+    expect(deps.octokit.createCommit).not.toHaveBeenCalled();
   });
 
   it('rejects an invalid token with 401, logged, and writes nothing', async () => {
@@ -80,7 +89,7 @@ describe('POST /api/ingest', () => {
     } as Parameters<typeof handler>[0]);
 
     expect(response.status).toBe(401);
-    expect(deps.octokit.createOrUpdateFileContents).not.toHaveBeenCalled();
+    expect(deps.octokit.createCommit).not.toHaveBeenCalled();
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('invalid token'));
     logSpy.mockRestore();
   });
@@ -100,7 +109,19 @@ describe('POST /api/ingest', () => {
     expect(response.status).toBe(422);
     const json = (await response.json()) as { error: string };
     expect(json.error).toMatch(/frontmatter\.type/);
-    expect(deps.octokit.createOrUpdateFileContents).not.toHaveBeenCalled();
+    expect(deps.octokit.createCommit).not.toHaveBeenCalled();
+  });
+
+  it('rejects a malformed assets array with 422 and writes nothing', async () => {
+    const deps = buildDeps();
+    const handler = createIngestHandler(deps);
+
+    const response = await handler({
+      request: request({ ...validPayload, assets: [{ path: 'a.png' }] }),
+    } as Parameters<typeof handler>[0]);
+
+    expect(response.status).toBe(422);
+    expect(deps.octokit.createCommit).not.toHaveBeenCalled();
   });
 
   it('commits a valid published article and returns its live URL', async () => {
@@ -124,7 +145,32 @@ describe('POST /api/ingest', () => {
       'https://publish.example.test/running-kubernetes-on-a-beelink-cluster',
     );
     expect(json.operation).toBe('create');
-    expect(deps.octokit.createOrUpdateFileContents).toHaveBeenCalledOnce();
+    expect(deps.octokit.createCommit).toHaveBeenCalledOnce();
+  });
+
+  it('commits an article with embedded assets in the same commit', async () => {
+    const deps = buildDeps();
+    const handler = createIngestHandler(deps);
+
+    const response = await handler({
+      request: request({
+        ...validPayload,
+        frontmatter: { ...validPayload.frontmatter, status: 'published' },
+        assets: [{ path: 'diagram.png', data: Buffer.from('bytes').toString('base64') }],
+      }),
+    } as Parameters<typeof handler>[0]);
+
+    expect(response.status).toBe(200);
+    expect(deps.octokit.createCommit).toHaveBeenCalledOnce();
+    expect(deps.octokit.createTree).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tree: expect.arrayContaining([
+          expect.objectContaining({
+            path: 'assets/running-kubernetes-on-a-beelink-cluster/diagram.png',
+          }),
+        ]),
+      }),
+    );
   });
 
   it('commits a draft and returns a stable /preview/<uuid> URL instead of its slug', async () => {
@@ -169,19 +215,17 @@ describe('POST /api/ingest', () => {
     } as Parameters<typeof handler>[0]);
 
     expect(response.status).toBe(500);
-    expect(deps.octokit.createOrUpdateFileContents).not.toHaveBeenCalled();
+    expect(deps.octokit.createCommit).not.toHaveBeenCalled();
   });
 
   it('republishing the same slug produces an update commit, not a duplicate file', async () => {
     const deps = buildDeps({
-      octokit: {
+      octokit: buildOctokit({
         getContent: vi
           .fn()
           .mockResolvedValue({ data: { type: 'file', sha: 'existing-sha' } }),
-        createOrUpdateFileContents: vi
-          .fn()
-          .mockResolvedValue({ data: { commit: { sha: 'def456' } } }),
-      },
+        createCommit: vi.fn().mockResolvedValue({ data: { sha: 'def456' } }),
+      }),
     });
     const handler = createIngestHandler(deps);
 
@@ -192,7 +236,7 @@ describe('POST /api/ingest', () => {
     expect(response.status).toBe(200);
     const json = (await response.json()) as { operation: string };
     expect(json.operation).toBe('update');
-    expect(deps.octokit.createOrUpdateFileContents).toHaveBeenCalledWith(
+    expect(deps.octokit.createCommit).toHaveBeenCalledWith(
       expect.objectContaining({
         message: 'publish: update running-kubernetes-on-a-beelink-cluster',
       }),
@@ -222,12 +266,9 @@ describe('POST /api/ingest', () => {
 
   it('returns 502 when the GitHub commit fails', async () => {
     const deps = buildDeps({
-      octokit: {
-        getContent: vi.fn().mockImplementation(notFound),
-        createOrUpdateFileContents: vi
-          .fn()
-          .mockRejectedValue(new Error('GitHub is down')),
-      },
+      octokit: buildOctokit({
+        createCommit: vi.fn().mockRejectedValue(new Error('GitHub is down')),
+      }),
     });
     const handler = createIngestHandler(deps);
 
