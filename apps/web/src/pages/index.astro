@@ -1,31 +1,92 @@
 ---
-// The reading-list layout (year grouping, bio line, hover summaries) is
-// issue #12. This wires the shared tokens and container in place of it.
-import { getCollection } from 'astro:content';
+// The reading list: bio line, then a year-grouped reverse-chronological
+// list of the first 30 entries, then a link to /archive for the rest. See
+// docs/PRD.md section 4.6 and docs/design.md section 1's anti-pattern list
+// (no cards, no excerpts, no thumbnails, no reading-time badges here).
+import { getCollection, type CollectionEntry } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { getSiteConfig } from '../../../../site.config.js';
+import { formatShortDate } from '../lib/format-date.js';
+
+const HOMEPAGE_LIMIT = 30;
+const siteConfig = getSiteConfig();
 
 // postsLoader() only ever stores published posts - see
 // apps/web/src/content/posts-loader.ts. listed: false still gets a page,
 // just not a row here.
 const listedPosts = await getCollection('posts', ({ data }) => data.listed);
-const posts = listedPosts.sort((a, b) => b.data.date.localeCompare(a.data.date));
+const sorted = listedPosts.sort((a, b) => b.data.date.localeCompare(a.data.date));
+const homepagePosts = sorted.slice(0, HOMEPAGE_LIMIT);
+const hasMore = sorted.length > HOMEPAGE_LIMIT;
+
+// A plain object would re-sort these numeric-looking year keys ascending -
+// a Map preserves the reverse-chronological insertion order instead.
+const postsByYear = new Map<string, CollectionEntry<'posts'>[]>();
+for (const post of homepagePosts) {
+  const year = post.data.date.slice(0, 4);
+  const group = postsByYear.get(year);
+  if (group) {
+    group.push(post);
+  } else {
+    postsByYear.set(year, [post]);
+  }
+}
 ---
 
-<BaseLayout title="publishd">
+<BaseLayout title={siteConfig.title}>
   <div class="measure mx-auto">
-    <h1>publishd</h1>
+    <h1 class="font-heading text-[19px] font-semibold">{siteConfig.author.byline}</h1>
+    <p class="mt-2 text-mute">{siteConfig.bio}</p>
+
     {
-      posts.length === 0 ? (
-        <p class="text-mute">Nothing published yet.</p>
+      homepagePosts.length === 0 ? (
+        <p class="mt-12 text-mute">Nothing published yet.</p>
       ) : (
-        <ul class="list-none p-0">
-          {posts.map((post) => (
-            <li class="border-b border-border py-3">
-              <a href={`/${post.data.slug}`}>{post.data.title}</a>
-              <span class="text-mute text-[14px] font-[450]"> - {post.data.date}</span>
-            </li>
-          ))}
-        </ul>
+        [...postsByYear.entries()].map(([year, yearPosts]) => (
+          <section class="mt-10">
+            <h2 class="border-b border-border pb-2 text-[13px] font-[500] tracking-wide text-mute">
+              {year}
+            </h2>
+            <ul class="m-0 list-none p-0">
+              {yearPosts.map((post) => (
+                <li class="group border-b border-border py-3">
+                  <div class="flex items-baseline justify-between gap-4">
+                    <a
+                      href={`/${post.data.slug}`}
+                      class="font-[450]"
+                      transition:name={`title-${post.data.slug}`}
+                    >
+                      {post.data.title}
+                    </a>
+                    <span class="shrink-0 text-[13px] text-mute">
+                      {formatShortDate(post.data.date)}
+                    </span>
+                  </div>
+                  <div class="mt-0.5 flex items-start justify-between gap-4">
+                    {post.data.summary ? (
+                      <p class="m-0 hidden text-[14px] leading-snug text-mute group-hover:block group-focus-within:block">
+                        {post.data.summary}
+                      </p>
+                    ) : (
+                      <span />
+                    )}
+                    <span class="ml-auto shrink-0 text-[11px] tracking-wide text-mute uppercase">
+                      {post.data.type}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))
+      )
+    }
+
+    {
+      hasMore && (
+        <p class="mt-10">
+          <a href="/archive">Archive</a>
+        </p>
       )
     }
   </div>
