@@ -33,6 +33,11 @@ describe('rehypeHeadingAnchors', () => {
     ]);
   });
 
+  it('leaves the anchor element empty, so its glyph is never part of the heading', async () => {
+    const html = await render('## The hardware');
+    expect(html).toMatch(/<a href="#the-hardware"[^>]*><\/a>/);
+  });
+
   it('does not touch the footnotes section heading', async () => {
     const html = await render('See below.[^1]\n\n[^1]: A note.');
     expect(html).not.toContain('id="footnote-label"><a href="#footnote-label"');

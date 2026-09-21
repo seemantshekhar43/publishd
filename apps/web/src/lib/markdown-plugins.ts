@@ -18,10 +18,13 @@ function isElement(node: unknown, tagName?: string): node is Element {
 }
 
 /**
- * Appends a `#` anchor link to every heading that already has an `id`
+ * Appends an anchor link to every heading that already has an `id`
  * (rehypeHeadingIds runs before this in the pipeline). Hidden by default,
  * revealed on hover in the left margin - see the `.heading-anchor` rules
- * in theme.css.
+ * in theme.css, which also draw its `#` glyph. The element stays empty so
+ * that nothing reading a heading's text nodes - `rehypeHeadingIds`'
+ * `headings[].text` collection, a copied selection - picks the glyph up as
+ * part of the heading title; `aria-label` carries the accessible name.
  */
 export function rehypeHeadingAnchors() {
   return (tree: Root) => {
@@ -40,7 +43,7 @@ export function rehypeHeadingAnchors() {
           className: ['heading-anchor'],
           ariaLabel: 'Link to this section',
         },
-        children: [{ type: 'text', value: '#' }],
+        children: [],
       };
       node.children.push(anchor);
     });

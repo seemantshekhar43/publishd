@@ -253,6 +253,10 @@ body {
   opacity: 0;
 }
 
+.heading-anchor::before {
+  content: '#';
+}
+
 h1:hover .heading-anchor,
 h2:hover .heading-anchor,
 h3:hover .heading-anchor,
