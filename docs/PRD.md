@@ -482,7 +482,7 @@ All generated at build, none hand-maintained. Nothing here should ever be a chec
 
 | Surface | What ships |
 | --- | --- |
-| `sitemap.xml` | Astro's sitemap integration. Drafts, previews, archived excluded. `lastmod` from the git commit date, not the build date, so a rebuild does not churn every entry. |
+| `sitemap.xml` | Drafts, previews, archived excluded. `lastmod` from the git commit date, not the build date, so a rebuild does not churn every entry. Build mechanism: see [`architecture.md`](architecture.md#7-build-pipeline). |
 | `robots.txt` | Allow all, point at the sitemap, disallow `/preview/`. |
 | Icons | Generated at build from one source SVG: `favicon.ico`, 32/180px PNGs, `apple-touch-icon`, maskable 192/512. |
 | `site.webmanifest` | Name, theme colour per scheme, icons. |
