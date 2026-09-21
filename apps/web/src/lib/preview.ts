@@ -12,9 +12,6 @@
 
 import { createHmac } from 'node:crypto';
 
-const PREVIEW_ID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-
 /** Deterministic per-slug preview id, formatted as a UUID. */
 export function derivePreviewId(slug: string, secret: string): string {
   const digest = createHmac('sha256', secret).update(slug).digest();
@@ -31,9 +28,4 @@ export function derivePreviewId(slug: string, secret: string): string {
     hex.slice(16, 20),
     hex.slice(20, 32),
   ].join('-');
-}
-
-/** True when a value has the shape of a preview id - not a proof it resolves to a draft. */
-export function hasValidPreviewIdShape(value: string): boolean {
-  return PREVIEW_ID_PATTERN.test(value);
 }
