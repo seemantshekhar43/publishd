@@ -2,6 +2,9 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { getSiteConfig } from '../../../site.config.js';
+
+const siteUrl = getSiteConfig().url;
 
 /**
  * Proves the content-collection pipeline end to end (issue #8 acceptance
@@ -63,10 +66,10 @@ describe('per-page SEO surface (issue #17)', () => {
   it('emits a canonical url, an og:image, and a BlogPosting for the article route', () => {
     const html = readFileSync(`${distDir}a-test-fixture-post/index.html`, 'utf-8');
     expect(html).toContain(
-      '<link rel="canonical" href="https://publish.shekse.com/a-test-fixture-post">',
+      `<link rel="canonical" href="${siteUrl}/a-test-fixture-post">`,
     );
     expect(html).toContain(
-      '<meta property="og:image" content="https://publish.shekse.com/og/a-test-fixture-post.png">',
+      `<meta property="og:image" content="${siteUrl}/og/a-test-fixture-post.png">`,
     );
 
     const jsonLdMatch = html.match(
@@ -81,7 +84,7 @@ describe('per-page SEO surface (issue #17)', () => {
 
   it('emits a canonical url, an og:image, and Person + WebSite JSON-LD for the homepage', () => {
     const html = readFileSync(`${distDir}index.html`, 'utf-8');
-    expect(html).toContain('<link rel="canonical" href="https://publish.shekse.com">');
+    expect(html).toContain(`<link rel="canonical" href="${siteUrl}">`);
     expect(html).toContain('property="og:image"');
 
     const jsonLdScripts = [
@@ -98,9 +101,7 @@ describe('per-page SEO surface (issue #17)', () => {
     expect(existsSync(`${distDir}robots.txt`)).toBe(true);
 
     const sitemap = readFileSync(`${distDir}sitemap.xml`, 'utf-8');
-    expect(sitemap).toContain(
-      '<loc>https://publish.shekse.com/a-test-fixture-post</loc>',
-    );
+    expect(sitemap).toContain(`<loc>${siteUrl}/a-test-fixture-post</loc>`);
     expect(sitemap).not.toContain('draft-fixture-post');
   });
 
