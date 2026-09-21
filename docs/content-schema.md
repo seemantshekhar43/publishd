@@ -31,7 +31,7 @@ publishAt: 2026-09-25T09:00:00Z
 | `status` | `draft` \| `published` \| `archived` | no | `draft` | See §4 |
 | `type` | `post` \| `note` \| `til` \| `doc` | no | `post` | Drives layout, not taxonomy |
 | `tags` | string[] | no | `[]` | Flat. No hierarchy, no parent tags. |
-| `summary` | string, max 300 | no | - | Used in OG image, RSS, and hover on the index |
+| `summary` | string, max 300 | no | - | Used in RSS and hover on the index. The OG card template uses title/type/date only. |
 | `canonical` | URL | no | - | Points search engines at the original if cross-posted |
 | `publishAt` | ISO datetime | no | - | Future value holds the post back. See §5. |
 | `listed` | boolean | no | `true` | `false` keeps it out of the feed but still published |
