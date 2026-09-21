@@ -191,12 +191,16 @@ Publishing against a local instance uses the `local` profile in `~/.config/publi
 
 `pnpm test:e2e` publishes a real fixture through the built CLI against **staging** (never production) and asserts the exit criterion: a working public URL, a commit in the content repo's `staging` branch, and a full publish-to-live time under 60 seconds. It cleans up its own fixture afterward.
 
-Requires three env vars, none of which live in this repo:
+Requires these env vars, none of which live in this repo:
 
 ```bash
 PUBLISHD_ENDPOINT=https://<staging deployment URL>
 PUBLISHD_TOKEN=<a valid client token>
 GITHUB_TOKEN=<a token with contents:write on the content repo>
+# Only if the target deployment has Vercel Deployment Protection enabled -
+# generate one under Vercel project Settings > Deployment Protection >
+# Protection Bypass for Automation.
+PUBLISHD_PROTECTION_BYPASS=<the bypass secret>
 pnpm test:e2e
 ```
 

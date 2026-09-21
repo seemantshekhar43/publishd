@@ -5,8 +5,10 @@
  * Runs against staging, never production - see docs/PRD.md section 11's
  * Environments table. Requires PUBLISHD_ENDPOINT (the staging deployment
  * URL), PUBLISHD_TOKEN (a valid client token), and GITHUB_TOKEN (to verify
- * the resulting commit and clean up the fixture afterward) to be set. Not
- * part of `pnpm test` - run explicitly with `pnpm test:e2e`.
+ * the resulting commit and clean up the fixture afterward) to be set.
+ * PUBLISHD_PROTECTION_BYPASS is also required when the target deployment
+ * has Vercel Deployment Protection enabled - see issue #42. Not part of
+ * `pnpm test` - run explicitly with `pnpm test:e2e`.
  */
 
 import { execFile } from 'node:child_process';
@@ -108,7 +110,10 @@ describe('M1 exit: end-to-end smoke test', () => {
         })
       ).data;
 
-      const response = await fetch(url);
+      const bypassHeaders = process.env.PUBLISHD_PROTECTION_BYPASS
+        ? { 'x-vercel-protection-bypass': process.env.PUBLISHD_PROTECTION_BYPASS }
+        : {};
+      const response = await fetch(url, { headers: bypassHeaders });
       expect(response.status).toBe(200);
       const body = await response.text();
       expect(body).toContain(title);

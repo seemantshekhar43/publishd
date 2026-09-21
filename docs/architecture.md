@@ -241,8 +241,10 @@ Secrets never live here. They are environment variables:
 | --- | --- | --- |
 | `PUBLISHD_TOKENS` | Vercel | Hashed ingest tokens |
 | `GITHUB_TOKEN` | Vercel | Commit access to the content repo |
+| `PUBLISHD_CONTENT_BRANCH` | Vercel | Overrides `content.branch` - lets a staging deployment target a different content branch than production, without touching `site.config.ts` |
 | `PUBLISHD_ENDPOINT` | Client | Overrides the configured endpoint |
 | `PUBLISHD_TOKEN` | Client | The client's bearer token |
+| `PUBLISHD_PROTECTION_BYPASS` | Client | Vercel's "Protection Bypass for Automation" secret - only needed against a deployment with Deployment Protection enabled |
 
 The client reads `~/.config/publishd/config.toml` for named profiles, so the same CLI targets local, staging, and production without a code change.
 

@@ -14,9 +14,10 @@ export async function pollUntilLive(
   url: string,
   fetchImpl: typeof fetch,
   options: PollOptions = DEFAULT_OPTIONS,
+  headers: Record<string, string> = {},
 ): Promise<void> {
   for (let attempt = 0; attempt < options.attempts; attempt++) {
-    const isLive = await checkOnce(url, fetchImpl);
+    const isLive = await checkOnce(url, fetchImpl, headers);
     if (isLive) {
       return;
     }
@@ -27,9 +28,13 @@ export async function pollUntilLive(
   throw new Error(`timed out waiting for ${url} to go live`);
 }
 
-async function checkOnce(url: string, fetchImpl: typeof fetch): Promise<boolean> {
+async function checkOnce(
+  url: string,
+  fetchImpl: typeof fetch,
+  headers: Record<string, string>,
+): Promise<boolean> {
   try {
-    const response = await fetchImpl(url, { method: 'HEAD' });
+    const response = await fetchImpl(url, { method: 'HEAD', headers });
     return response.ok;
   } catch {
     return false;

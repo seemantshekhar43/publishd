@@ -40,4 +40,34 @@ describe('pollUntilLive', () => {
     ).rejects.toThrow(/timed out/);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
+
+  it('sends no extra headers by default', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+
+    await pollUntilLive('https://publish.example.test/hello', fetchImpl, {
+      attempts: 1,
+      delayMs: 0,
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith('https://publish.example.test/hello', {
+      method: 'HEAD',
+      headers: {},
+    });
+  });
+
+  it('forwards the given headers on every request', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+
+    await pollUntilLive(
+      'https://publish.example.test/hello',
+      fetchImpl,
+      { attempts: 1, delayMs: 0 },
+      { 'x-vercel-protection-bypass': 'bypass-secret' },
+    );
+
+    expect(fetchImpl).toHaveBeenCalledWith('https://publish.example.test/hello', {
+      method: 'HEAD',
+      headers: { 'x-vercel-protection-bypass': 'bypass-secret' },
+    });
+  });
 });

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, type Mock } from 'vitest';
 import { runPublish, type PublishDeps, type PublishOptions } from './publish.js';
 
 const articleMarkdown = `---
@@ -149,6 +149,38 @@ describe('runPublish', () => {
 
     expect(exitCode).toBe(1);
     expect(deps.fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('sends no protection-bypass header when protectionBypass is not set', async () => {
+    const deps = buildDeps();
+
+    await runPublish(buildOptions(), deps);
+
+    const [, requestInit] = (deps.fetchImpl as Mock).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
+    expect(requestInit.headers).not.toHaveProperty('x-vercel-protection-bypass');
+  });
+
+  it('sends the protection-bypass header on both the ingest request and polling when set', async () => {
+    const deps = buildDeps({ protectionBypass: 'bypass-secret' });
+
+    await runPublish(buildOptions(), deps);
+
+    const [, requestInit] = (deps.fetchImpl as Mock).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
+    expect(requestInit.headers).toMatchObject({
+      'x-vercel-protection-bypass': 'bypass-secret',
+    });
+    expect(deps.pollUntilLive).toHaveBeenCalledWith(
+      'https://publish.example.test/hello-world',
+      deps.fetchImpl,
+      undefined,
+      { 'x-vercel-protection-bypass': 'bypass-secret' },
+    );
   });
 
   it('reports a non-2xx ingest response as an error, naming the server-provided reason', async () => {
