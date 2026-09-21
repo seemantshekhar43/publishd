@@ -1,0 +1,35 @@
+---
+// The on-demand fallback for any single-segment path `[slug].astro` didn't
+// generate statically - archived content and genuinely unknown URLs. See
+// docs/content-schema.md section 4: `archived` must return 410 Gone, not
+// 404, so a crawler drops it from the index instead of treating it as a
+// broken link. A static build can't carry a custom status code per file
+// (Astro only special-cases 3xx redirects for prerendered pages), so this
+// one route runs per-request instead - every real post stays fully static.
+export const prerender = false;
+
+import { getEntry } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const segments = Astro.params.slug?.split('/') ?? [];
+const archived = segments.length === 1 ? await getEntry('archived', segments[0] as string) : undefined;
+
+if (archived) {
+  Astro.response.status = 410;
+} else {
+  Astro.response.status = 404;
+}
+
+const title = archived ? 'No longer available' : 'Not found';
+const message = archived
+  ? 'This was published here once, but has since been unpublished.'
+  : "There's nothing at this address.";
+---
+
+<BaseLayout title={title} noindex>
+  <div class="measure mx-auto px-4 py-16">
+    <h1>{title}</h1>
+    <p class="text-mute">{message}</p>
+    <p><a href="/">← home</a></p>
+  </div>
+</BaseLayout>

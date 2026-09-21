@@ -41,6 +41,13 @@ A small serverless endpoint validates your markdown and commits it to a git repo
 - **Markdown in, permanent URLs out.** Republishing the same file updates the same URL.
 - **Self-contained HTML pages too**, served verbatim, for things like interactive artifacts and reports.
 
+## Integrations
+
+| Integration | What it does |
+| --- | --- |
+| [Obsidian](integrations/obsidian/README.md) | Publish the current note with a hotkey, via the community "Shell commands" plugin - no custom plugin required |
+| [Coding agent skill](integrations/skill/SKILL.md) | Draft-first publishing instructions any agent that reads markdown can follow |
+
 ## Documentation
 
 | Doc | What is in it |

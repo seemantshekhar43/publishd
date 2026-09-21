@@ -5,6 +5,8 @@ import {
   articlePath,
   assetPath,
   commitArticle,
+  findArticleBySlug,
+  listArticles,
   listPublishedSlugs,
   serializeArticle,
 } from './content-repo.js';
@@ -218,5 +220,103 @@ describe('listPublishedSlugs', () => {
     expect(getTree).toHaveBeenCalledWith(
       expect.objectContaining({ tree_sha: 'branch-head-sha', recursive: 'true' }),
     );
+  });
+});
+
+function fileContentResponse(articleSource: string) {
+  return {
+    data: {
+      type: 'file',
+      content: Buffer.from(articleSource, 'utf8').toString('base64'),
+      encoding: 'base64',
+    },
+  };
+}
+
+describe('listArticles', () => {
+  it('reads every matched file and returns its slug, title, status, and date', async () => {
+    const octokit = buildOctokit({
+      getTree: vi.fn().mockResolvedValue({
+        data: {
+          tree: [{ path: 'posts/2026/hello.md' }, { path: 'posts/2025/older.md' }],
+        },
+      }),
+      getContent: vi.fn().mockImplementation(({ path }: { path: string }) => {
+        if (path === 'posts/2026/hello.md') {
+          return Promise.resolve(
+            fileContentResponse(
+              '---\ntitle: Hello\nslug: hello\nstatus: published\ndate: 2026-09-20\n---\n\nBody.',
+            ),
+          );
+        }
+        return Promise.resolve(
+          fileContentResponse(
+            '---\ntitle: Older\nslug: older\nstatus: draft\ndate: 2025-01-01\n---\n\nBody.',
+          ),
+        );
+      }),
+    });
+
+    const articles = await listArticles(octokit, target);
+
+    expect(articles).toEqual([
+      { slug: 'hello', title: 'Hello', status: 'published', date: '2026-09-20' },
+      { slug: 'older', title: 'Older', status: 'draft', date: '2025-01-01' },
+    ]);
+  });
+
+  it('skips a file that fails schema validation instead of throwing', async () => {
+    const octokit = buildOctokit({
+      getTree: vi
+        .fn()
+        .mockResolvedValue({ data: { tree: [{ path: 'posts/2026/broken.md' }] } }),
+      getContent: vi
+        .fn()
+        .mockResolvedValue(
+          fileContentResponse('---\ntype: not-a-real-type\n---\n\nBody.'),
+        ),
+    });
+
+    const articles = await listArticles(octokit, target);
+
+    expect(articles).toEqual([]);
+  });
+});
+
+describe('findArticleBySlug', () => {
+  it('finds the article whose filename matches the slug', async () => {
+    const octokit = buildOctokit({
+      getTree: vi.fn().mockResolvedValue({
+        data: {
+          tree: [{ path: 'posts/2026/hello.md' }, { path: 'posts/2026/other.md' }],
+        },
+      }),
+      getContent: vi
+        .fn()
+        .mockResolvedValue(
+          fileContentResponse(
+            '---\ntitle: Hello\nslug: hello\nstatus: published\ndate: 2026-09-20\n---\n\nBody text.',
+          ),
+        ),
+    });
+
+    const result = await findArticleBySlug(octokit, target, 'hello');
+
+    expect(result?.path).toBe('posts/2026/hello.md');
+    expect(result?.frontmatter.title).toBe('Hello');
+    expect(result?.body.trim()).toBe('Body text.');
+  });
+
+  it('returns undefined when no article has that slug', async () => {
+    const octokit = buildOctokit({
+      getTree: vi
+        .fn()
+        .mockResolvedValue({ data: { tree: [{ path: 'posts/2026/hello.md' }] } }),
+    });
+
+    const result = await findArticleBySlug(octokit, target, 'missing');
+
+    expect(result).toBeUndefined();
+    expect(octokit.getContent).not.toHaveBeenCalled();
   });
 });
