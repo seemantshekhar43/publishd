@@ -150,7 +150,7 @@ Why git rather than Postgres, SQLite, or an object store:
 - **Portability.** If Vercel, GitHub, or this project dies, you still have a folder of markdown.
 - **No backup strategy needed** beyond clones.
 
-Binaries live in the same repo under `assets/<slug>/` in v1. CI warns above 200MB and fails above 400MB. The escape hatch, only when that warning fires: move to Cloudflare R2. The CLI routes every asset through one `uploadAsset()` function, so it is a one-file change. **Do not build it before the warning fires.**
+Binaries live in the same repo under `assets/<slug>/` in v1. CI warns above 200MB and fails above 400MB. The escape hatch, only when that warning fires: move to Cloudflare R2. Every publish - markdown and assets alike - routes through one commit function (see [`docs/architecture.md`](architecture.md) section 9), so it is a one-file change. **Do not build it before the warning fires.**
 
 Not stored: rendered HTML, the search index, derived metadata. All regenerated at build and disposable.
 

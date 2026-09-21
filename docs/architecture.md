@@ -262,7 +262,7 @@ Where to add things, so they land in the right layer:
 | Support a new client | Nothing. Add a token to `PUBLISHD_TOKENS`. The HTTP contract is the integration surface. |
 | Change the look | `site.config.ts` theme presets, or `docs/design.md` tokens. Not component CSS. |
 | Add a route | `apps/web/src/pages`, and add the slug to the reserved list in the schema. |
-| Move assets off git | Reimplement `uploadAsset()` in the CLI. One function, by design. |
+| Move assets off git | Change `commitArticle()`'s blob writes in `apps/web/src/lib/content-repo.ts`. One function, by design. |
 
 ---
 
