@@ -7,6 +7,7 @@ import { getCollection, type CollectionEntry } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getSiteConfig } from '../../../../site.config.js';
 import { formatShortDate } from '../lib/format-date.js';
+import { buildPersonJsonLd, buildWebSiteJsonLd } from '../lib/seo.js';
 
 const HOMEPAGE_LIMIT = 30;
 const siteConfig = getSiteConfig();
@@ -33,7 +34,10 @@ for (const post of homepagePosts) {
 }
 ---
 
-<BaseLayout title={siteConfig.title}>
+<BaseLayout
+  title={siteConfig.title}
+  jsonLd={[buildWebSiteJsonLd(siteConfig), buildPersonJsonLd(siteConfig)]}
+>
   <div class="measure mx-auto">
     <h1 class="font-heading text-[19px] font-semibold">{siteConfig.author.byline}</h1>
     <p class="mt-2 text-mute">{siteConfig.bio}</p>

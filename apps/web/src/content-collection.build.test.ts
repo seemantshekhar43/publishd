@@ -53,3 +53,63 @@ describe('the content-collection build pipeline', () => {
     expect(html).not.toContain('A Draft Fixture Post');
   });
 });
+
+/**
+ * Issue #17 acceptance criteria: "a unit test asserts every published
+ * route emits a canonical URL, an OG image, and valid JSON-LD." Runs
+ * against the same real build as above, rather than a second one.
+ */
+describe('per-page SEO surface (issue #17)', () => {
+  it('emits a canonical url, an og:image, and a BlogPosting for the article route', () => {
+    const html = readFileSync(`${distDir}a-test-fixture-post/index.html`, 'utf-8');
+    expect(html).toContain(
+      '<link rel="canonical" href="https://publish.shekse.com/a-test-fixture-post">',
+    );
+    expect(html).toContain(
+      '<meta property="og:image" content="https://publish.shekse.com/og/a-test-fixture-post.png">',
+    );
+
+    const jsonLdMatch = html.match(
+      /<script type="application\/ld\+json">([^<]+)<\/script>/,
+    );
+    const jsonLdText = jsonLdMatch?.[1];
+    expect(jsonLdText).toBeDefined();
+    const jsonLd = JSON.parse(jsonLdText as string);
+    expect(jsonLd['@type']).toBe('BlogPosting');
+    expect(jsonLd.headline).toBe('A Test Fixture Post');
+  });
+
+  it('emits a canonical url, an og:image, and Person + WebSite JSON-LD for the homepage', () => {
+    const html = readFileSync(`${distDir}index.html`, 'utf-8');
+    expect(html).toContain('<link rel="canonical" href="https://publish.shekse.com">');
+    expect(html).toContain('property="og:image"');
+
+    const jsonLdScripts = [
+      ...html.matchAll(/<script type="application\/ld\+json">([^<]+)<\/script>/g),
+    ];
+    const types = jsonLdScripts.map((match) => JSON.parse(match[1] as string)['@type']);
+    expect(types).toEqual(expect.arrayContaining(['WebSite', 'Person']));
+  });
+
+  it('generates the machine-readable surfaces from issue #15', () => {
+    expect(existsSync(`${distDir}rss.xml`)).toBe(true);
+    expect(existsSync(`${distDir}feed.json`)).toBe(true);
+    expect(existsSync(`${distDir}sitemap.xml`)).toBe(true);
+    expect(existsSync(`${distDir}robots.txt`)).toBe(true);
+
+    const sitemap = readFileSync(`${distDir}sitemap.xml`, 'utf-8');
+    expect(sitemap).toContain(
+      '<loc>https://publish.shekse.com/a-test-fixture-post</loc>',
+    );
+    expect(sitemap).not.toContain('draft-fixture-post');
+  });
+
+  it('generates the icon and manifest surfaces from issue #17', () => {
+    expect(existsSync(`${distDir}favicon.ico`)).toBe(true);
+    expect(existsSync(`${distDir}favicon-32x32.png`)).toBe(true);
+    expect(existsSync(`${distDir}apple-touch-icon.png`)).toBe(true);
+    expect(existsSync(`${distDir}icon-192-maskable.png`)).toBe(true);
+    expect(existsSync(`${distDir}icon-512-maskable.png`)).toBe(true);
+    expect(existsSync(`${distDir}site.webmanifest`)).toBe(true);
+  });
+});

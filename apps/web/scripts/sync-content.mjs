@@ -7,6 +7,12 @@
  * Skips gracefully with no error when GITHUB_TOKEN is unset, so local dev
  * without content-repo access still works exactly as it did before this
  * script existed (see apps/web/src/content/README.md).
+ *
+ * Also writes `src/content/.lastmod.json`, a slug -> ISO commit date map
+ * built from each file's latest commit on the content repo. The sitemap
+ * and JSON-LD `dateModified` read this (see `src/lib/lastmod.ts`) rather
+ * than the build date, so a rebuild with no content change doesn't churn
+ * every entry (issue #15).
  */
 
 import { mkdir, readdir, rm, writeFile } from 'node:fs/promises';
@@ -16,7 +22,9 @@ import { Octokit } from '@octokit/rest';
 import { getSiteConfig } from '../../../dist/site.config.js';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-const POSTS_DIR = join(SCRIPT_DIR, '..', 'src', 'content', 'posts');
+const CONTENT_DIR = join(SCRIPT_DIR, '..', 'src', 'content');
+const POSTS_DIR = join(CONTENT_DIR, 'posts');
+const LASTMOD_PATH = join(CONTENT_DIR, '.lastmod.json');
 
 async function listMarkdownFiles(octokit, owner, repo, ref, path) {
   const { data } = await octokit.repos.getContent({ owner, repo, ref, path });
@@ -30,6 +38,21 @@ async function listMarkdownFiles(octokit, owner, repo, ref, path) {
     }
   }
   return files;
+}
+
+async function latestCommitDate(octokit, owner, repo, ref, path) {
+  const { data } = await octokit.repos.listCommits({
+    owner,
+    repo,
+    sha: ref,
+    path,
+    per_page: 1,
+  });
+  const date = data[0]?.commit?.committer?.date ?? data[0]?.commit?.author?.date;
+  if (!date) {
+    throw new Error(`no commit found for ${path}`);
+  }
+  return date;
 }
 
 async function clearGeneratedPosts() {
@@ -70,6 +93,8 @@ async function main() {
     throw error;
   }
 
+  const lastmod = {};
+
   for (const path of paths) {
     const { data } = await octokit.repos.getContent({ owner, repo, ref: branch, path });
     if (Array.isArray(data) || data.type !== 'file' || !data.content) {
@@ -81,7 +106,12 @@ async function main() {
     const raw = Buffer.from(data.content, 'base64').toString('utf-8');
     const filename = path.split('/').pop();
     await writeFile(join(POSTS_DIR, filename), raw, 'utf-8');
+
+    const slug = filename.replace(/\.md$/, '');
+    lastmod[slug] = await latestCommitDate(octokit, owner, repo, branch, path);
   }
+
+  await writeFile(LASTMOD_PATH, JSON.stringify(lastmod, null, 2), 'utf-8');
 
   console.log(
     `[sync-content] synced ${paths.length} post(s) from ${owner}/${repo}@${branch}`,

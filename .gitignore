@@ -18,6 +18,7 @@ coverage/
 # synced from the private content repo at build time - never committed here
 apps/web/src/content/posts/*
 !apps/web/src/content/posts/.gitkeep
+apps/web/src/content/.lastmod.json
 
 # env + secrets
 .env

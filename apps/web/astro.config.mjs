@@ -7,10 +7,11 @@ import tailwindcss from '@tailwindcss/vite';
 // rendering itself (`export const prerender = false`). See issue #8 and
 // docs/architecture.md section 7 - M1 is deliberately unstyled.
 //
-// `site` (the absolute URL used by the sitemap/RSS integrations) is added
-// with those integrations in M2 - read from site.config.ts then, from
-// within the Vite-processed source tree rather than here, where importing
-// a .ts file by its compiled .js specifier isn't reliable.
+// No `site` option here, and no @astrojs/sitemap integration: /rss.xml,
+// /feed.json and /sitemap.xml (issue #15) are hand-rolled pages that read
+// `site.config.ts` themselves via the compiled `dist/site.config.js`, from
+// within the Vite-processed source tree - importing the .ts file by its
+// compiled specifier isn't reliable from this file.
 export default defineConfig({
   output: 'static',
   adapter: vercel(),
