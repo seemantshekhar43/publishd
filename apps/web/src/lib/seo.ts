@@ -29,7 +29,7 @@ export function absoluteUrl(siteConfig: SiteConfig, path: string): string {
 
 export interface BlogPostingInput {
   siteConfig: SiteConfig;
-  post: Pick<ArticleFrontmatter, 'title' | 'slug' | 'date' | 'summary'>;
+  post: Pick<ArticleFrontmatter, 'title' | 'slug' | 'date' | 'summary' | 'type'>;
   lastmodMap: LastmodMap;
 }
 
@@ -50,7 +50,7 @@ export function buildBlogPostingJsonLd({
     datePublished: `${post.date}T00:00:00Z`,
     dateModified: resolveLastmod(lastmodMap, post.slug, post.date),
     description: post.summary,
-    image: absoluteUrl(siteConfig, resolveOgImagePath({ type: 'post', slug: post.slug })),
+    image: absoluteUrl(siteConfig, resolveOgImagePath({ type: post.type, slug: post.slug })),
     author: buildPersonJsonLd(siteConfig),
   };
 }

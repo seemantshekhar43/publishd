@@ -77,6 +77,7 @@ describe('buildBlogPostingJsonLd', () => {
     slug: 'my-post',
     date: '2026-01-15',
     summary: 'A summary.',
+    type: 'post' as const,
   };
 
   it('emits a BlogPosting with the canonical url, image, and author', () => {
@@ -101,5 +102,14 @@ describe('buildBlogPostingJsonLd', () => {
   it('falls back dateModified to the published date when no commit date is recorded', () => {
     const jsonLd = buildBlogPostingJsonLd({ siteConfig, post, lastmodMap: {} });
     expect(jsonLd.dateModified).toBe('2026-01-15T00:00:00Z');
+  });
+
+  it('uses the site default image for a non-post type, matching its og:image meta tag', () => {
+    const jsonLd = buildBlogPostingJsonLd({
+      siteConfig,
+      post: { ...post, slug: 'a-note', type: 'note' },
+      lastmodMap: {},
+    });
+    expect(jsonLd.image).toBe('https://example.test/og/default.png');
   });
 });
