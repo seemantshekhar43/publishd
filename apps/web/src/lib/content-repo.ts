@@ -12,9 +12,14 @@
  */
 
 import { createHash } from 'node:crypto';
+import matter from 'gray-matter';
 import { stringify } from 'yaml';
 import type { Octokit } from '@octokit/rest';
-import type { ArticleFrontmatter } from 'publishd-schema';
+import {
+  parseArticleFrontmatter,
+  SchemaValidationError,
+  type ArticleFrontmatter,
+} from 'publishd-schema';
 
 export interface ContentRepoTarget {
   owner: string;
@@ -52,7 +57,10 @@ export interface ContentRepoOctokit {
     repo: string;
     ref: string;
     path: string;
-  }): Promise<{ data: { type?: string; sha?: string } | unknown[] }>;
+  }): Promise<{
+    data:
+      { type?: string; sha?: string; content?: string; encoding?: string } | unknown[];
+  }>;
   getRef(params: {
     owner: string;
     repo: string;
@@ -169,6 +177,136 @@ export async function listPublishedSlugs(
     }
   }
   return slugs;
+}
+
+export interface ArticleListEntry {
+  slug: string;
+  title: string;
+  status: ArticleFrontmatter['status'];
+  date: string;
+}
+
+/**
+ * Every article in the content repo, for `publishd list` (issue #22). Unlike
+ * `listPublishedSlugs`, this needs each file's actual frontmatter - not just
+ * whether it exists - so it reads every matched file after the one tree
+ * listing. Fine for a CLI command a human runs occasionally; not something
+ * on the ingest hot path.
+ */
+export async function listArticles(
+  octokit: Pick<ContentRepoOctokit, 'getRef' | 'getTree' | 'getContent'>,
+  target: ContentRepoTarget,
+): Promise<ArticleListEntry[]> {
+  const headSha = (
+    await octokit.getRef({
+      owner: target.owner,
+      repo: target.repo,
+      ref: `heads/${target.branch}`,
+    })
+  ).data.object.sha;
+  const tree = await octokit.getTree({
+    owner: target.owner,
+    repo: target.repo,
+    tree_sha: headSha,
+    recursive: 'true',
+  });
+
+  const paths = tree.data.tree
+    .map((entry) => entry.path)
+    .filter(
+      (path): path is string => path !== undefined && ARTICLE_PATH_PATTERN.test(path),
+    );
+
+  const entries: ArticleListEntry[] = [];
+  for (const path of paths) {
+    const article = await readArticle(octokit, target, path);
+    if (article) {
+      entries.push({
+        slug: article.frontmatter.slug,
+        title: article.frontmatter.title,
+        status: article.frontmatter.status,
+        date: article.frontmatter.date,
+      });
+    }
+  }
+  return entries;
+}
+
+export interface ReadArticleResult {
+  path: string;
+  frontmatter: ArticleFrontmatter;
+  body: string;
+}
+
+/** Reads and parses one article file. `undefined` for a malformed file
+ * (fails schema validation) rather than throwing, so one bad file doesn't
+ * take down `list` for every other article. */
+async function readArticle(
+  octokit: Pick<ContentRepoOctokit, 'getContent'>,
+  target: ContentRepoTarget,
+  path: string,
+): Promise<ReadArticleResult | undefined> {
+  const response = await octokit.getContent({
+    owner: target.owner,
+    repo: target.repo,
+    ref: target.branch,
+    path,
+  });
+  const data = response.data;
+  if (Array.isArray(data) || data.type !== 'file' || data.content === undefined) {
+    return undefined;
+  }
+  const raw = Buffer.from(
+    data.content,
+    (data.encoding as BufferEncoding) ?? 'base64',
+  ).toString('utf8');
+  const { data: rawFrontmatter, content } = matter(raw);
+  try {
+    return { path, frontmatter: parseArticleFrontmatter(rawFrontmatter), body: content };
+  } catch (error) {
+    if (error instanceof SchemaValidationError) {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Finds the article whose slug is `slug`, for `publishd unpublish` (issue
+ * #22). `articlePath()` always names the file after the slug, so the one
+ * tree listing is enough to find the matching path without reading every
+ * file - only the match itself is actually read.
+ */
+export async function findArticleBySlug(
+  octokit: Pick<ContentRepoOctokit, 'getRef' | 'getTree' | 'getContent'>,
+  target: ContentRepoTarget,
+  slug: string,
+): Promise<ReadArticleResult | undefined> {
+  const headSha = (
+    await octokit.getRef({
+      owner: target.owner,
+      repo: target.repo,
+      ref: `heads/${target.branch}`,
+    })
+  ).data.object.sha;
+  const tree = await octokit.getTree({
+    owner: target.owner,
+    repo: target.repo,
+    tree_sha: headSha,
+    recursive: 'true',
+  });
+
+  for (const entry of tree.data.tree) {
+    const match = entry.path && ARTICLE_PATH_PATTERN.exec(entry.path);
+    if (match?.[1] !== slug) {
+      continue;
+    }
+    const article = await readArticle(octokit, target, entry.path as string);
+    if (article) {
+      return article;
+    }
+  }
+  return undefined;
 }
 
 /** `assets/<slug>/<path>`, per docs/PRD.md section 4.2. */
