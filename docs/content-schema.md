@@ -156,6 +156,10 @@ Obsidian-flavoured markdown is **normalised on ingest, never rejected**. Unknown
 | ` ```dataview ` blocks | Stripped, with a CLI warning naming the file |
 | ` ```templater ` / `<%% %%>` | Stripped, with a CLI warning |
 
+### Wikilink resolution
+
+"Published" here means the target note has a corresponding `posts/<year>/<slug>.md` in the content repo, derived from the wikilink text the same way a slug is derived from a title (see §3) - not specifically `status: published`. Checking each candidate's actual status would mean reading and parsing every article's frontmatter on every publish; existence is enough to avoid a dead link, and a link to a note that's still a draft is the more useful failure mode than silently downgrading it to plain text.
+
 ### Vault root resolution
 
 The CLI walks up from the target file looking for a `.obsidian/` directory and treats its parent as the vault root. Asset paths in `![[...]]` resolve against that root, matching Obsidian's own behaviour.

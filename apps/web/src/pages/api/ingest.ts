@@ -5,6 +5,7 @@ export const prerender = false;
 import type { APIRoute } from 'astro';
 import { Octokit } from '@octokit/rest';
 import {
+  deriveSlug,
   parseArticleFrontmatter,
   SchemaValidationError,
   type ArticleFrontmatter,
@@ -15,11 +16,13 @@ import { extractBearerToken, hashToken, resolveClient } from '../../lib/auth.js'
 import { checkRateLimit, PUBLISHES_PER_HOUR } from '../../lib/rate-limit.js';
 import {
   commitArticle,
+  listPublishedSlugs,
   octokitAdapter,
   type AssetInput,
   type ContentRepoOctokit,
   type ContentRepoTarget,
 } from '../../lib/content-repo.js';
+import { normaliseObsidianMarkdown } from '../../lib/obsidian.js';
 
 interface IngestPayload {
   kind: string;
@@ -181,6 +184,28 @@ export function createIngestHandler(deps: IngestHandlerDeps): APIRoute {
       throw error;
     }
 
+    // Normalise Obsidian syntax - see docs/architecture.md section 4 step 3
+    // and lib/obsidian.ts. The published-slug lookup is a network round
+    // trip, so it's skipped unless the body could actually contain a
+    // wikilink to resolve.
+    const publishedSlugs = /\[\[/.test(payload.value.body)
+      ? await listPublishedSlugs(deps.octokit, deps.target)
+      : new Set<string>();
+    const normalised = normaliseObsidianMarkdown(payload.value.body, {
+      tags: frontmatter.tags,
+      resolveWikilink: (target) => {
+        const slug = deriveSlug(target);
+        return publishedSlugs.has(slug) ? slug : undefined;
+      },
+    });
+    const body = normalised.body;
+    if (normalised.tags.length !== frontmatter.tags.length) {
+      frontmatter = { ...frontmatter, tags: normalised.tags };
+    }
+    for (const warning of normalised.warnings) {
+      console.warn(`[ingest] client=${client} slug=${frontmatter.slug}: ${warning}`);
+    }
+
     // Resolved before committing: a draft this server cannot mint a
     // preview link for is not published at all, rather than committed with
     // no way to share it.
@@ -194,7 +219,7 @@ export function createIngestHandler(deps: IngestHandlerDeps): APIRoute {
       const result = await commitArticle(deps.octokit, {
         target: deps.target,
         frontmatter,
-        body: payload.value.body,
+        body,
         assets: payload.value.assets,
       });
       console.log(
@@ -205,6 +230,7 @@ export function createIngestHandler(deps: IngestHandlerDeps): APIRoute {
         slug: frontmatter.slug,
         operation: result.operation,
         commit: result.commitSha,
+        warnings: normalised.warnings,
       });
     } catch (error) {
       console.error(`[ingest] client=${client} github commit failed:`, error);

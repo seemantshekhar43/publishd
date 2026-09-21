@@ -243,6 +243,33 @@ body {
   opacity: 1;
 }
 
+/* Obsidian callouts (`> [!note]`), turned into these by rehypeCallouts -
+   see lib/markdown-plugins.ts. One visual treatment for every type; the
+   `data-type` attribute is there for a future type-specific accent without
+   another round of hex values. */
+.admonition {
+  margin: 1.5em 0;
+  padding: 0.75em 1em;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 0.25rem;
+  background-color: var(--surface);
+}
+
+.admonition > :first-child {
+  margin-top: 0;
+}
+
+.admonition > :last-child {
+  margin-bottom: 0;
+}
+
+.admonition-title {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  color: var(--text);
+}
+
 /* Heading anchors - hidden until hover, in the left margin above 768px
    where there is room for one; inline after the heading text below that.
    See docs/design.md section 5 and lib/markdown-plugins.ts. */

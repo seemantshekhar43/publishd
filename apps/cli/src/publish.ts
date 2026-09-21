@@ -67,6 +67,8 @@ interface IngestResponseBody {
   url: string;
   slug: string;
   operation: 'create' | 'update';
+  /** Obsidian normalisation warnings from the server - see docs/content-schema.md section 6. */
+  warnings?: string[];
 }
 
 interface IngestErrorBody {
@@ -173,6 +175,9 @@ export async function runPublish(
   }
 
   const result = (await response.json()) as IngestResponseBody;
+  for (const warning of result.warnings ?? []) {
+    deps.log.warn(`${options.filePath}: ${warning}`);
+  }
   deps.log.info(result.url);
 
   await deps.pollUntilLive(result.url, deps.fetchImpl, undefined, bypassHeaders);

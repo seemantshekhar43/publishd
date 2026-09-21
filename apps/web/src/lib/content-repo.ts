@@ -88,6 +88,12 @@ export interface ContentRepoOctokit {
     ref: string;
     sha: string;
   }): Promise<unknown>;
+  getTree(params: {
+    owner: string;
+    repo: string;
+    tree_sha: string;
+    recursive?: string;
+  }): Promise<{ data: { tree: { path?: string }[] } }>;
 }
 
 /** Adapts a real `Octokit` instance to `ContentRepoOctokit`. */
@@ -100,6 +106,7 @@ export function octokitAdapter(octokit: Octokit): ContentRepoOctokit {
     createTree: (params) => octokit.rest.git.createTree(params),
     createCommit: (params) => octokit.rest.git.createCommit(params),
     updateRef: (params) => octokit.rest.git.updateRef(params),
+    getTree: (params) => octokit.rest.git.getTree(params),
   };
 }
 
@@ -122,6 +129,46 @@ export interface CommitArticleResult {
 export function articlePath(frontmatter: ArticleFrontmatter): string {
   const year = frontmatter.date.slice(0, 4);
   return `posts/${year}/${frontmatter.slug}.md`;
+}
+
+const ARTICLE_PATH_PATTERN = /^posts\/\d{4}\/([a-z0-9-]+)\.md$/;
+
+/**
+ * The slug of every article already committed to the content repo, for
+ * resolving Obsidian wikilinks at ingest (see lib/obsidian.ts). A single
+ * recursive tree listing rather than reading each file, since all a
+ * wikilink needs to know is whether the target exists - not its status,
+ * which would mean reading and parsing every file's frontmatter. A note
+ * that exists but is a draft therefore resolves as a link too; the
+ * alternative (silently downgrading a real, if unpublished, link to plain
+ * text on every draft round-trip) would be more surprising in practice.
+ */
+export async function listPublishedSlugs(
+  octokit: Pick<ContentRepoOctokit, 'getRef' | 'getTree'>,
+  target: ContentRepoTarget,
+): Promise<Set<string>> {
+  const headSha = (
+    await octokit.getRef({
+      owner: target.owner,
+      repo: target.repo,
+      ref: `heads/${target.branch}`,
+    })
+  ).data.object.sha;
+  const tree = await octokit.getTree({
+    owner: target.owner,
+    repo: target.repo,
+    tree_sha: headSha,
+    recursive: 'true',
+  });
+
+  const slugs = new Set<string>();
+  for (const entry of tree.data.tree) {
+    const match = entry.path && ARTICLE_PATH_PATTERN.exec(entry.path);
+    if (match?.[1]) {
+      slugs.add(match[1]);
+    }
+  }
+  return slugs;
 }
 
 /** `assets/<slug>/<path>`, per docs/PRD.md section 4.2. */

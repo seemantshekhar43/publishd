@@ -30,6 +30,7 @@ function buildOctokit(overrides: Partial<ContentRepoOctokit> = {}): ContentRepoO
     createTree: vi.fn().mockResolvedValue({ data: { sha: 'tree-sha' } }),
     createCommit: vi.fn().mockResolvedValue({ data: { sha: 'abc123' } }),
     updateRef: vi.fn().mockResolvedValue({}),
+    getTree: vi.fn().mockResolvedValue({ data: { tree: [] } }),
     ...overrides,
   };
 }
@@ -292,6 +293,85 @@ describe('POST /api/ingest', () => {
     } as Parameters<typeof handler>[0]);
 
     expect(response.status).toBe(429);
+  });
+
+  it('merges an inline #tag into the committed frontmatter and strips it from the body', async () => {
+    const deps = buildDeps();
+    const handler = createIngestHandler(deps);
+
+    await handler({
+      request: request({ ...validPayload, body: 'A note about #homelab things.' }),
+    } as Parameters<typeof handler>[0]);
+
+    const content = Buffer.from(
+      vi.mocked(deps.octokit.createBlob).mock.calls[0]?.[0].content ?? '',
+      'base64',
+    ).toString('utf8');
+    expect(content).toContain('tags:\n  - homelab');
+    expect(content).not.toContain('#homelab');
+  });
+
+  it('resolves a wikilink against a published slug found in the content repo', async () => {
+    const deps = buildDeps({
+      octokit: buildOctokit({
+        getTree: vi.fn().mockResolvedValue({
+          data: { tree: [{ path: 'posts/2025/some-other-note.md' }] },
+        }),
+      }),
+    });
+    const handler = createIngestHandler(deps);
+
+    await handler({
+      request: request({ ...validPayload, body: 'See [[Some Other Note]].' }),
+    } as Parameters<typeof handler>[0]);
+
+    const content = Buffer.from(
+      vi.mocked(deps.octokit.createBlob).mock.calls[0]?.[0].content ?? '',
+      'base64',
+    ).toString('utf8');
+    expect(content).toContain('[Some Other Note](/some-other-note)');
+  });
+
+  it('renders an unpublished wikilink as plain text, never a dead link', async () => {
+    const deps = buildDeps();
+    const handler = createIngestHandler(deps);
+
+    await handler({
+      request: request({ ...validPayload, body: 'See [[Some Other Note]].' }),
+    } as Parameters<typeof handler>[0]);
+
+    const content = Buffer.from(
+      vi.mocked(deps.octokit.createBlob).mock.calls[0]?.[0].content ?? '',
+      'base64',
+    ).toString('utf8');
+    expect(content).toContain('See Some Other Note.');
+    expect(content).not.toContain('[[');
+  });
+
+  it('skips the content-repo tree lookup when the body has no wikilink', async () => {
+    const deps = buildDeps();
+    const handler = createIngestHandler(deps);
+
+    await handler({ request: request(validPayload) } as Parameters<typeof handler>[0]);
+
+    expect(deps.octokit.getTree).not.toHaveBeenCalled();
+  });
+
+  it('returns dataview/templater stripping warnings in the response', async () => {
+    const deps = buildDeps();
+    const handler = createIngestHandler(deps);
+
+    const response = await handler({
+      request: request({
+        ...validPayload,
+        body: 'Before.\n\n```dataview\nLIST FROM #homelab\n```\n\nAfter.',
+      }),
+    } as Parameters<typeof handler>[0]);
+
+    const json = (await response.json()) as { warnings: string[] };
+    expect(json.warnings).toEqual([
+      'stripped a ```dataview code block - it only runs inside Obsidian',
+    ]);
   });
 
   it('returns 502 when the GitHub commit fails', async () => {

@@ -184,3 +184,90 @@ export function rehypeSidenotes() {
     });
   };
 }
+
+/**
+ * Obsidian callout marker at the start of a blockquote's first paragraph -
+ * `[!note]`, optionally followed by a fold hint (`+`/`-`, ignored - the
+ * site has no collapsible callouts) and a custom title. See
+ * docs/content-schema.md section 6: "Callouts mapped to admonition
+ * components". Left as a plain blockquote by the ingest-side normaliser
+ * (apps/web/src/lib/obsidian.ts) since `> [!note]` is valid CommonMark on
+ * its own - never "broken" even if this plugin never runs - so this is the
+ * only place the marker is actually interpreted.
+ */
+const CALLOUT_MARKER = /^\[!([a-zA-Z][\w-]*)\]([+-])?[ \t]*/;
+
+function capitalize(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
+/**
+ * Turns `> [!type] Title` blockquotes into `.admonition` divs: a single
+ * visual treatment for every type (see theme.css), with `data-type` on the
+ * element for a type-specific label and any future per-type styling. Any
+ * other blockquote - no marker, or one that doesn't parse as one - is left
+ * exactly as remark produced it.
+ */
+export function rehypeCallouts() {
+  return (tree: Root) => {
+    visit(tree, 'element', (node: Element, index, parent) => {
+      if (node.tagName !== 'blockquote' || index === undefined || !parent) return;
+
+      const first = node.children.find((child) => isElement(child, 'p'));
+      if (!first) return;
+      const marker = first.children[0];
+      if (!marker || marker.type !== 'text') return;
+
+      const match = CALLOUT_MARKER.exec(marker.value);
+      const calloutType = match?.[1];
+      if (!match || !calloutType) return;
+
+      // remark represents the soft line break between "> [!note]" and the
+      // next quoted line as a literal `\n` inside this one text node, not
+      // a separate paragraph - so only the text up to that `\n` is the
+      // title; everything after it is the callout's first line of body.
+      const afterMarker = marker.value.slice(match[0].length);
+      const newline = afterMarker.indexOf('\n');
+      const titleLine = newline === -1 ? afterMarker : afterMarker.slice(0, newline);
+      const remainder = newline === -1 ? '' : afterMarker.slice(newline + 1);
+
+      const type = calloutType.toLowerCase();
+      const title = titleLine.trim();
+
+      const bodyChildren: ElementContent[] = [];
+      if (remainder.length > 0 || first.children.length > 1) {
+        bodyChildren.push({
+          type: 'element',
+          tagName: 'p',
+          properties: {},
+          children: [
+            ...(remainder.length > 0
+              ? [{ type: 'text', value: remainder } as ElementContent]
+              : []),
+            ...first.children.slice(1),
+          ],
+        });
+      }
+      bodyChildren.push(...node.children.filter((child) => child !== first));
+
+      const admonition: Element = {
+        type: 'element',
+        tagName: 'div',
+        properties: { className: ['admonition'], dataType: type },
+        children: [
+          {
+            type: 'element',
+            tagName: 'p',
+            properties: { className: ['admonition-title'] },
+            children: [
+              { type: 'text', value: title.length > 0 ? title : capitalize(type) },
+            ],
+          },
+          ...bodyChildren,
+        ],
+      };
+
+      (parent as Element).children[index] = admonition;
+    });
+  };
+}

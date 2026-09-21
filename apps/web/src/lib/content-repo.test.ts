@@ -5,6 +5,7 @@ import {
   articlePath,
   assetPath,
   commitArticle,
+  listPublishedSlugs,
   serializeArticle,
 } from './content-repo.js';
 import type { ContentRepoOctokit } from './content-repo.js';
@@ -45,6 +46,7 @@ function buildOctokit(overrides: Partial<ContentRepoOctokit> = {}): ContentRepoO
     createTree: vi.fn().mockResolvedValue({ data: { sha: 'new-tree-sha' } }),
     createCommit: vi.fn().mockResolvedValue({ data: { sha: 'new-commit-sha' } }),
     updateRef: vi.fn().mockResolvedValue({}),
+    getTree: vi.fn().mockResolvedValue({ data: { tree: [] } }),
     ...overrides,
   };
 }
@@ -180,5 +182,41 @@ describe('commitArticle', () => {
       tree: { path: string }[];
     };
     expect(tree.tree.map((entry) => entry.path)).toEqual(['posts/2026/hello.md']);
+  });
+});
+
+describe('listPublishedSlugs', () => {
+  it('collects the slug out of every posts/<year>/<slug>.md path', async () => {
+    const octokit = buildOctokit({
+      getTree: vi.fn().mockResolvedValue({
+        data: {
+          tree: [
+            { path: 'posts/2026/hello-world.md' },
+            { path: 'posts/2025/older-post.md' },
+            { path: 'assets/hello-world/diagram.png' },
+            { path: 'posts/2026' },
+          ],
+        },
+      }),
+    });
+
+    const slugs = await listPublishedSlugs(octokit, target);
+
+    expect(slugs).toEqual(new Set(['hello-world', 'older-post']));
+  });
+
+  it('looks up the tree from the target branch head, not a fixed ref', async () => {
+    const getRef = vi
+      .fn()
+      .mockResolvedValue({ data: { object: { sha: 'branch-head-sha' } } });
+    const getTree = vi.fn().mockResolvedValue({ data: { tree: [] } });
+    const octokit = buildOctokit({ getRef, getTree });
+
+    await listPublishedSlugs(octokit, target);
+
+    expect(getRef).toHaveBeenCalledWith(expect.objectContaining({ ref: 'heads/main' }));
+    expect(getTree).toHaveBeenCalledWith(
+      expect.objectContaining({ tree_sha: 'branch-head-sha', recursive: 'true' }),
+    );
   });
 });
