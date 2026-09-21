@@ -396,6 +396,32 @@ export async function commitArticle(
     assetsWritten.push(destPath);
   }
 
+  const commitSha = await commitTree(
+    octokit,
+    target,
+    treeEntries,
+    `publish: ${operation} ${frontmatter.slug}`,
+  );
+
+  return { path, operation, commitSha, assetsWritten };
+}
+
+/**
+ * The blob/tree/commit/ref-update sequence every publish shares, whatever
+ * files it writes: one tree building on the branch's current tree, one
+ * commit, one fast-forward ref update. `treeEntries` already carry their
+ * own blob shas - the caller has created those - so this only assembles
+ * and lands the commit itself.
+ */
+async function commitTree(
+  octokit: Pick<
+    ContentRepoOctokit,
+    'getRef' | 'getCommit' | 'createTree' | 'createCommit' | 'updateRef'
+  >,
+  target: ContentRepoTarget,
+  treeEntries: GitTreeEntry[],
+  message: string,
+): Promise<string> {
   const ref = `heads/${target.branch}`;
   const headSha = (await octokit.getRef({ owner: target.owner, repo: target.repo, ref }))
     .data.object.sha;
@@ -417,7 +443,7 @@ export async function commitArticle(
   const commit = await octokit.createCommit({
     owner: target.owner,
     repo: target.repo,
-    message: `publish: ${operation} ${frontmatter.slug}`,
+    message,
     tree: tree.data.sha,
     parents: [headSha],
   });
@@ -429,7 +455,80 @@ export async function commitArticle(
     sha: commit.data.sha,
   });
 
-  return { path, operation, commitSha: commit.data.sha, assetsWritten };
+  return commit.data.sha;
+}
+
+/** `pages/<year>/<slug>.html`, alongside `pages/<year>/<slug>.json` for
+ * its resolved frontmatter - see `commitPage`. */
+export function pagePath(frontmatter: ArticleFrontmatter): string {
+  const year = frontmatter.date.slice(0, 4);
+  return `pages/${year}/${frontmatter.slug}.html`;
+}
+
+function pageMetaPath(frontmatter: ArticleFrontmatter): string {
+  const year = frontmatter.date.slice(0, 4);
+  return `pages/${year}/${frontmatter.slug}.json`;
+}
+
+export interface CommitPageParams {
+  target: ContentRepoTarget;
+  frontmatter: ArticleFrontmatter;
+  html: string;
+}
+
+export interface CommitPageResult {
+  path: string;
+  operation: 'create' | 'update';
+  commitSha: string;
+}
+
+/**
+ * Commits an HTML `page` and its resolved frontmatter as two files in one
+ * commit - see docs/content-schema.md section 2. The `.html` file is
+ * `html` byte-for-byte, never rewritten; `parseArticleFrontmatter`'s
+ * output can't be losslessly recovered from `<meta>` tags alone (a
+ * derived slug, a defaulted status, `updated`), so it's persisted
+ * alongside the document rather than re-derived from it on every build.
+ */
+export async function commitPage(
+  octokit: ContentRepoOctokit,
+  { target, frontmatter, html }: CommitPageParams,
+): Promise<CommitPageResult> {
+  const htmlPath = pagePath(frontmatter);
+  const metaPath = pageMetaPath(frontmatter);
+  const metaContent = `${JSON.stringify(frontmatter, null, 2)}\n`;
+
+  const existingSha = await getExistingFileSha(octokit, target, htmlPath);
+  const operation = existingSha ? 'update' : 'create';
+
+  const [htmlBlob, metaBlob] = await Promise.all([
+    octokit.createBlob({
+      owner: target.owner,
+      repo: target.repo,
+      content: Buffer.from(html, 'utf8').toString('base64'),
+      encoding: 'base64',
+    }),
+    octokit.createBlob({
+      owner: target.owner,
+      repo: target.repo,
+      content: Buffer.from(metaContent, 'utf8').toString('base64'),
+      encoding: 'base64',
+    }),
+  ]);
+
+  const treeEntries: GitTreeEntry[] = [
+    { path: htmlPath, mode: '100644', type: 'blob', sha: htmlBlob.data.sha },
+    { path: metaPath, mode: '100644', type: 'blob', sha: metaBlob.data.sha },
+  ];
+
+  const commitSha = await commitTree(
+    octokit,
+    target,
+    treeEntries,
+    `publish: ${operation} ${frontmatter.slug}`,
+  );
+
+  return { path: htmlPath, operation, commitSha };
 }
 
 async function getExistingFileSha(

@@ -1,9 +1,12 @@
 /**
  * Feed item shape shared by `/rss.xml` (via `@astrojs/rss`) and
  * `/feed.json` (hand-rolled JSON Feed 1.1) - one place builds the item
- * list from the posts collection so the two formats can't drift (issue
- * #15). Full-content feeds are out of scope for v1 - both formats carry
- * only title, date, summary, and a link out.
+ * list from the posts and pages collections so the two formats can't
+ * drift (issue #15), and so `listed: false` (docs/content-schema.md
+ * section 1: "keeps it out of the feed but still published") is enforced
+ * exactly once rather than at every call site. Full-content feeds are out
+ * of scope for v1 - both formats carry only title, date, summary, and a
+ * link out.
  */
 
 import type { ArticleFrontmatter, SiteConfig } from 'publishd-schema';
@@ -16,16 +19,23 @@ export interface FeedItem {
   summary?: string;
 }
 
+/**
+ * `pathPrefix` distinguishes a page's `/p/<slug>` from a post's `/<slug>`
+ * (docs/content-schema.md section 2) - everything else about how the two
+ * kinds appear in a feed is identical.
+ */
 export function buildFeedItems(
   siteConfig: SiteConfig,
-  posts: Pick<ArticleFrontmatter, 'title' | 'slug' | 'date' | 'summary'>[],
+  entries: Pick<ArticleFrontmatter, 'title' | 'slug' | 'date' | 'summary' | 'listed'>[],
+  pathPrefix = '',
 ): FeedItem[] {
-  return [...posts]
+  return entries
+    .filter((entry) => entry.listed)
     .sort((a, b) => b.date.localeCompare(a.date))
-    .map((post) => ({
-      title: post.title,
-      url: absoluteUrl(siteConfig, `/${post.slug}`),
-      date: new Date(`${post.date}T00:00:00Z`),
-      ...(post.summary !== undefined ? { summary: post.summary } : {}),
+    .map((entry) => ({
+      title: entry.title,
+      url: absoluteUrl(siteConfig, `/${pathPrefix}${entry.slug}`),
+      date: new Date(`${entry.date}T00:00:00Z`),
+      ...(entry.summary !== undefined ? { summary: entry.summary } : {}),
     }));
 }

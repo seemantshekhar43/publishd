@@ -59,7 +59,7 @@ export const command = defineCommand({
     },
     kind: {
       type: 'string',
-      description: 'article (only supported kind for now)',
+      description: 'article (markdown) or page (self-contained HTML)',
       default: 'article',
     },
     tags: { type: 'string', description: 'Comma-separated tags, overrides frontmatter' },

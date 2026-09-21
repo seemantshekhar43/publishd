@@ -1,0 +1,34 @@
+---
+// The on-demand fallback for any /p/<slug> path the static /p/[slug].ts
+// route didn't generate - archived pages and genuinely unknown ones. Same
+// reasoning as pages/[...slug].astro: a static build can't carry a custom
+// status code per file, so this one route runs per-request instead, while
+// every real page stays fully static.
+export const prerender = false;
+
+import { getEntry } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const segments = Astro.params.slug?.split('/') ?? [];
+const archived =
+  segments.length === 1 ? await getEntry('archivedPages', segments[0] as string) : undefined;
+
+if (archived) {
+  Astro.response.status = 410;
+} else {
+  Astro.response.status = 404;
+}
+
+const title = archived ? 'No longer available' : 'Not found';
+const message = archived
+  ? 'This was published here once, but has since been unpublished.'
+  : "There's nothing at this address.";
+---
+
+<BaseLayout title={title} noindex>
+  <div class="measure mx-auto px-4 py-16">
+    <h1>{title}</h1>
+    <p class="text-mute">{message}</p>
+    <p><a href="/">← home</a></p>
+  </div>
+</BaseLayout>

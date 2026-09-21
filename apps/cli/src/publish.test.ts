@@ -152,10 +152,10 @@ describe('runPublish', () => {
     expect(deps.openUrl).not.toHaveBeenCalled();
   });
 
-  it('rejects kind "page" as not yet supported, before any network call', async () => {
+  it('rejects an unsupported kind before any network call', async () => {
     const deps = buildDeps();
 
-    const exitCode = await runPublish(buildOptions({ kind: 'page' }), deps);
+    const exitCode = await runPublish(buildOptions({ kind: 'video' }), deps);
 
     expect(exitCode).toBe(1);
     expect(deps.fetchImpl).not.toHaveBeenCalled();
@@ -279,5 +279,106 @@ describe('runPublish', () => {
     expect(deps.log.error).toHaveBeenCalledWith(
       expect.stringContaining('frontmatter.type'),
     );
+  });
+});
+
+const pageHtml = `<!doctype html>
+<html>
+<head><title>An inkloop artifact</title></head>
+<body><h1>Hello</h1><script>alert(1)</script></body>
+</html>`;
+
+describe('runPublish - kind: page', () => {
+  it('publishes an HTML page, sending it as the body verbatim with kind "page"', async () => {
+    const deps = buildDeps({ readFileContent: vi.fn().mockResolvedValue(pageHtml) });
+
+    const exitCode = await runPublish(
+      buildOptions({ kind: 'page', filePath: 'artifact.html' }),
+      deps,
+    );
+
+    expect(exitCode).toBe(0);
+    const sent = await sentBody(deps.fetchImpl as Mock);
+    expect(sent.kind).toBe('page');
+    expect(sent.body).toBe(pageHtml);
+  });
+
+  it('derives the slug from the <title> tag when no shekse:slug meta exists', async () => {
+    const deps = buildDeps({ readFileContent: vi.fn().mockResolvedValue(pageHtml) });
+
+    await runPublish(buildOptions({ kind: 'page', filePath: 'artifact.html' }), deps);
+
+    const sent = await sentBody(deps.fetchImpl as Mock);
+    const frontmatter = sent.frontmatter as { title: string; slug: string };
+    expect(frontmatter.title).toBe('An inkloop artifact');
+    expect(frontmatter.slug).toBe('an-inkloop-artifact');
+  });
+
+  it('does not run embed resolution for a page - it is not markdown', async () => {
+    const deps = buildDeps({ readFileContent: vi.fn().mockResolvedValue(pageHtml) });
+
+    await runPublish(
+      buildOptions({ kind: 'page', filePath: '/vault/artifact.html' }),
+      deps,
+    );
+
+    expect(deps.assetFs.exists).not.toHaveBeenCalled();
+  });
+
+  it('reads from stdin for a page too, when the path is "-"', async () => {
+    const deps = buildDeps({ readStdin: vi.fn().mockResolvedValue(pageHtml) });
+
+    const exitCode = await runPublish(
+      buildOptions({ kind: 'page', filePath: '-' }),
+      deps,
+    );
+
+    expect(exitCode).toBe(0);
+    expect(deps.readFileContent).not.toHaveBeenCalled();
+  });
+
+  it('a --status flag is used only when the page has no shekse:status meta', async () => {
+    const deps = buildDeps({ readFileContent: vi.fn().mockResolvedValue(pageHtml) });
+
+    await runPublish(
+      buildOptions({ kind: 'page', filePath: 'artifact.html', status: 'published' }),
+      deps,
+    );
+
+    const sent = await sentBody(deps.fetchImpl as Mock);
+    expect((sent.frontmatter as { status: string }).status).toBe('published');
+  });
+
+  it('a meta tag wins over a --status flag for the same page', async () => {
+    const html = pageHtml.replace(
+      '<head>',
+      '<head><meta name="shekse:status" content="draft">',
+    );
+    const deps = buildDeps({ readFileContent: vi.fn().mockResolvedValue(html) });
+
+    await runPublish(
+      buildOptions({ kind: 'page', filePath: 'artifact.html', status: 'published' }),
+      deps,
+    );
+
+    const sent = await sentBody(deps.fetchImpl as Mock);
+    expect((sent.frontmatter as { status: string }).status).toBe('draft');
+  });
+
+  it('rejects a page with no resolvable title, before any network call', async () => {
+    const deps = buildDeps({
+      readFileContent: vi
+        .fn()
+        .mockResolvedValue('<html><body>No title anywhere.</body></html>'),
+    });
+
+    const exitCode = await runPublish(
+      buildOptions({ kind: 'page', filePath: 'artifact.html' }),
+      deps,
+    );
+
+    expect(exitCode).toBe(1);
+    expect(deps.fetchImpl).not.toHaveBeenCalled();
+    expect(deps.log.error).toHaveBeenCalledWith(expect.stringContaining('title'));
   });
 });

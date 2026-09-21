@@ -5,9 +5,11 @@ import {
   articlePath,
   assetPath,
   commitArticle,
+  commitPage,
   findArticleBySlug,
   listArticles,
   listPublishedSlugs,
+  pagePath,
   serializeArticle,
 } from './content-repo.js';
 import type { ContentRepoOctokit } from './content-repo.js';
@@ -318,5 +320,85 @@ describe('findArticleBySlug', () => {
 
     expect(result).toBeUndefined();
     expect(octokit.getContent).not.toHaveBeenCalled();
+  });
+});
+
+describe('pagePath', () => {
+  it('nests by publish year under pages/, with an .html extension', () => {
+    const frontmatter = parseArticleFrontmatter({ title: 'Hello', date: '2026-09-20' });
+    expect(pagePath(frontmatter)).toBe('pages/2026/hello.html');
+  });
+});
+
+describe('commitPage', () => {
+  it('writes the html and its resolved frontmatter as two files in one commit', async () => {
+    const octokit = buildOctokit();
+    const frontmatter = parseArticleFrontmatter({ title: 'Hello', date: '2026-09-20' });
+    const html = '<!doctype html><html><body>Hello</body></html>';
+
+    const result = await commitPage(octokit, { target, frontmatter, html });
+
+    expect(result.path).toBe('pages/2026/hello.html');
+    expect(result.operation).toBe('create');
+    expect(octokit.createCommit).toHaveBeenCalledOnce();
+    expect(octokit.createCommit).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'publish: create hello' }),
+    );
+    const tree = vi.mocked(octokit.createTree).mock.calls[0]?.[0] as {
+      tree: { path: string }[];
+    };
+    expect(tree.tree.map((entry) => entry.path).sort()).toEqual([
+      'pages/2026/hello.html',
+      'pages/2026/hello.json',
+    ]);
+  });
+
+  it('stores the html byte-for-byte - never re-serialized or rewritten', async () => {
+    const octokit = buildOctokit();
+    const frontmatter = parseArticleFrontmatter({ title: 'Hello', date: '2026-09-20' });
+    const html =
+      '<!doctype html>\n<html  class="weird-spacing"><body>&amp;</body></html>';
+
+    await commitPage(octokit, { target, frontmatter, html });
+
+    const htmlBlobContent =
+      vi.mocked(octokit.createBlob).mock.calls[0]?.[0].content ?? '';
+    expect(Buffer.from(htmlBlobContent, 'base64').toString('utf8')).toBe(html);
+  });
+
+  it('stores the fully resolved frontmatter in the .json sidecar', async () => {
+    const octokit = buildOctokit();
+    const frontmatter = parseArticleFrontmatter({
+      title: 'Hello',
+      date: '2026-09-20',
+      status: 'published',
+    });
+
+    await commitPage(octokit, { target, frontmatter, html: '<html></html>' });
+
+    const metaBlobContent =
+      vi.mocked(octokit.createBlob).mock.calls[1]?.[0].content ?? '';
+    const stored = JSON.parse(Buffer.from(metaBlobContent, 'base64').toString('utf8'));
+    expect(stored).toEqual(frontmatter);
+  });
+
+  it('updates an existing page with a "publish: update <slug>" commit', async () => {
+    const octokit = buildOctokit({
+      getContent: vi
+        .fn()
+        .mockResolvedValue({ data: { type: 'file', sha: 'existing-sha' } }),
+    });
+    const frontmatter = parseArticleFrontmatter({ title: 'Hello', date: '2026-09-20' });
+
+    const result = await commitPage(octokit, {
+      target,
+      frontmatter,
+      html: '<html></html>',
+    });
+
+    expect(result.operation).toBe('update');
+    expect(octokit.createCommit).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'publish: update hello' }),
+    );
   });
 });

@@ -55,7 +55,7 @@ Adding a fifth value is a schema change with layout work attached. Do not add on
 
 ## 2. Page metadata (HTML)
 
-An HTML `page` cannot carry YAML frontmatter, so metadata comes from `<meta>` tags in the document head, falling back to `<title>` and then to CLI flags.
+An HTML `page` cannot carry YAML frontmatter, so metadata comes from `<meta>` tags in the document head, falling back to a CLI flag and then (for `title` only) to `<title>`.
 
 ```html
 <title>PRD - publish.shekse.com</title>
@@ -70,6 +70,10 @@ An HTML `page` cannot carry YAML frontmatter, so metadata comes from `<meta>` ta
 Resolution order for every field: `<meta name="shekse:*">` -> CLI flag -> `<title>` (for `title` only) -> default.
 
 The document is otherwise **stored and served byte-for-byte**. The pipeline reads the head; it does not rewrite the document.
+
+### Storage
+
+A resolved field like a derived slug, a defaulted `status`, or `updated` can't be losslessly recovered from `<meta>` tags alone, so the content repo carries a page as two files rather than one: `pages/<year>/<slug>.html` (the document, untouched) and `pages/<year>/<slug>.json` (the same resolved frontmatter shape an article's YAML would carry). The site reads the `.json` sidecar for indexing, feeds, and the archived/410 check, and serves the `.html` file's bytes directly at request time - the sidecar is never sent to a reader.
 
 ---
 
