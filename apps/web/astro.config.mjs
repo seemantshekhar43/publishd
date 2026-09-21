@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import vercel from '@astrojs/vercel';
+import tailwindcss from '@tailwindcss/vite';
 
 // Static output for the site; the /api/ingest route opts into on-demand
 // rendering itself (`export const prerender = false`). See issue #8 and
@@ -13,4 +14,7 @@ import vercel from '@astrojs/vercel';
 export default defineConfig({
   output: 'static',
   adapter: vercel(),
+  vite: {
+    plugins: [tailwindcss()],
+  },
 });

@@ -1,0 +1,114 @@
+---
+// Sun/moon icon-button theme toggle. No text label; the accessible name
+// comes from `aria-label` and `title`. See docs/design.md section 5.
+//
+// The script here is a plain (bundled, deferred) module - it only wires up
+// the click handler and the OS-change listener. The render-blocking
+// no-flash script that prevents a white flash on a dark-theme load lives
+// separately, inline in <head>, in BaseLayout.astro - see its comment for
+// why the two must never be merged.
+---
+
+<button
+  id="theme-toggle"
+  type="button"
+  aria-label="Toggle colour theme"
+  title="Toggle colour theme"
+  class="inline-flex h-8 w-8 items-center justify-center rounded-md text-mute hover:text-text focus-visible:outline-2 focus-visible:outline-accent"
+>
+  <svg
+    id="theme-toggle-sun"
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    class="h-4 w-4"
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="12" r="4"></circle>
+    <path
+      d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
+    ></path>
+  </svg>
+  <svg
+    id="theme-toggle-moon"
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    class="hidden h-4 w-4"
+    aria-hidden="true"
+  >
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path>
+  </svg>
+</button>
+
+<script>
+  const STORAGE_KEY = 'theme';
+
+  function readStored(): 'light' | 'dark' | null {
+    try {
+      const value = localStorage.getItem(STORAGE_KEY);
+      return value === 'light' || value === 'dark' ? value : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function writeStored(theme: 'light' | 'dark'): void {
+    try {
+      localStorage.setItem(STORAGE_KEY, theme);
+    } catch {
+      // Storage unavailable (private mode, disabled cookies, etc). The
+      // choice still applies for this page load via the DOM attribute.
+    }
+  }
+
+  function systemPrefersDark(): boolean {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  function currentTheme(): 'light' | 'dark' {
+    const explicit = document.documentElement.getAttribute('data-theme');
+    if (explicit === 'light' || explicit === 'dark') return explicit;
+    return systemPrefersDark() ? 'dark' : 'light';
+  }
+
+  function applyTheme(theme: 'light' | 'dark'): void {
+    document.documentElement.setAttribute('data-theme', theme);
+
+    // Collapse the two media-matched <meta name="theme-color"> tags (see
+    // BaseLayout.astro) down to one, so an explicit choice always wins
+    // over the OS preference they'd otherwise track.
+    const metas = document.querySelectorAll('meta[name="theme-color"]');
+    metas.forEach((meta, index) => {
+      meta.removeAttribute('media');
+      meta.setAttribute('content', theme === 'dark' ? '#0F0E0C' : '#FDFBF7');
+      if (index > 0) meta.remove();
+    });
+
+    document.getElementById('theme-toggle-sun')?.classList.toggle('hidden', theme === 'dark');
+    document.getElementById('theme-toggle-moon')?.classList.toggle('hidden', theme !== 'dark');
+  }
+
+  applyTheme(currentTheme());
+
+  document.getElementById('theme-toggle')?.addEventListener('click', () => {
+    const next = currentTheme() === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    writeStored(next);
+  });
+
+  // Only react to an OS theme change when the visitor has not made an
+  // explicit choice - an explicit choice always wins.
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (event) => {
+    if (readStored() !== null) return;
+    applyTheme(event.matches ? 'dark' : 'light');
+  });
+</script>
