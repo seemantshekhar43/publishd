@@ -48,10 +48,78 @@ export function rehypeHeadingAnchors() {
 }
 
 /**
+ * Elements a sidenote may keep as they are. It is spliced into the
+ * paragraph that holds the reference, so it can only carry phrasing
+ * content - anything else has to give up its contents.
+ */
+const PHRASING_TAGS = new Set([
+  'abbr',
+  'b',
+  'br',
+  'cite',
+  'code',
+  'del',
+  'em',
+  'i',
+  'img',
+  'ins',
+  'kbd',
+  'mark',
+  'q',
+  's',
+  'samp',
+  'small',
+  'span',
+  'strong',
+  'sub',
+  'sup',
+  'time',
+  'u',
+  'var',
+  'wbr',
+]);
+
+/**
+ * Flattens a footnote definition's children into the content a sidenote
+ * can hold. The generated backref is dropped - the sidenote is a
+ * presentational duplicate, and its `aria-hidden` wrapper must not contain
+ * anything focusable. Author links are unwrapped to their text for the
+ * same reason, rather than dropped along with it. Block-level wrappers
+ * (lists, code blocks, extra paragraphs) give up their contents too, space
+ * separated, so a footnote that is not a single paragraph still says
+ * something instead of rendering as a bare number.
+ */
+function toSidenoteContent(nodes: ElementContent[]): ElementContent[] {
+  const content: ElementContent[] = [];
+
+  for (const node of nodes) {
+    if (!isElement(node)) {
+      content.push(node);
+      continue;
+    }
+
+    if (node.properties?.dataFootnoteBackref !== undefined) continue;
+
+    if (PHRASING_TAGS.has(node.tagName)) {
+      content.push({ ...node, children: toSidenoteContent(node.children) });
+      continue;
+    }
+
+    if (node.tagName !== 'a' && content.length > 0) {
+      content.push({ type: 'text', value: ' ' });
+    }
+    content.push(...toSidenoteContent(node.children));
+  }
+
+  return content;
+}
+
+/**
  * Turns GFM footnotes into sidenotes: a presentational, `aria-hidden` copy
  * of each footnote's text is inserted right after its reference. CSS floats
- * that copy into the right margin above 1100px and renders it inline,
- * parenthesised, below that - see docs/design.md section 5.
+ * that copy into the right margin wherever the margin is wide enough for it
+ * and renders it inline, parenthesised, otherwise - see docs/design.md
+ * section 5 and the `.sidenote` rules in theme.css.
  *
  * The original `<section data-footnotes>` produced by remark-gfm is kept in
  * the document (visually hidden via `.sr-only` in theme.css) so screen
@@ -91,11 +159,7 @@ export function rehypeSidenotes() {
       if (!definition) return;
 
       const number = toString(link);
-      const body: ElementContent[] = definition.children
-        .filter((child): child is Element => isElement(child, 'p'))
-        .flatMap((paragraph) =>
-          paragraph.children.filter((child) => !isElement(child, 'a')),
-        );
+      const body = toSidenoteContent(definition.children);
 
       const sidenote: Element = {
         type: 'element',

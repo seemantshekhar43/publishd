@@ -7,6 +7,14 @@
 // no-flash script that prevents a white flash on a dark-theme load lives
 // separately, inline in <head>, in BaseLayout.astro - see its comment for
 // why the two must never be merged.
+//
+// Both of those run once per full page load only. With ClientRouter in
+// play (BaseLayout.astro) a client-side navigation swaps <html>'s
+// attributes for the incoming document's - dropping `data-theme` - and
+// replaces <body>, and Astro marks both scripts as already-executed so
+// neither runs again. So the theme is re-applied on `astro:after-swap`
+// (which fires before the new page paints) and the button is re-wired on
+// `astro:page-load`.
 ---
 
 <button
@@ -74,7 +82,12 @@
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   }
 
+  // Stored first: after a client-side navigation `data-theme` is gone from
+  // <html>, so the attribute alone would silently fall back to the OS
+  // preference and lose an explicit choice.
   function currentTheme(): 'light' | 'dark' {
+    const stored = readStored();
+    if (stored !== null) return stored;
     const explicit = document.documentElement.getAttribute('data-theme');
     if (explicit === 'light' || explicit === 'dark') return explicit;
     return systemPrefersDark() ? 'dark' : 'light';
@@ -97,13 +110,23 @@
     document.getElementById('theme-toggle-moon')?.classList.toggle('hidden', theme !== 'dark');
   }
 
-  applyTheme(currentTheme());
+  function wireToggle(): void {
+    const button = document.getElementById('theme-toggle');
+    if (!button || button.dataset.themeWired) return;
+    button.dataset.themeWired = 'true';
 
-  document.getElementById('theme-toggle')?.addEventListener('click', () => {
-    const next = currentTheme() === 'dark' ? 'light' : 'dark';
-    applyTheme(next);
-    writeStored(next);
-  });
+    button.addEventListener('click', () => {
+      const next = currentTheme() === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      writeStored(next);
+    });
+  }
+
+  applyTheme(currentTheme());
+  wireToggle();
+
+  document.addEventListener('astro:after-swap', () => applyTheme(currentTheme()));
+  document.addEventListener('astro:page-load', wireToggle);
 
   // Only react to an OS theme change when the visitor has not made an
   // explicit choice - an explicit choice always wins.

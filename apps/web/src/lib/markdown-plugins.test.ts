@@ -21,6 +21,18 @@ describe('rehypeHeadingAnchors', () => {
     expect(html).toContain('<h2 id="the-hardware">The hardware<a href="#the-hardware"');
   });
 
+  it('keeps the anchor out of the heading text the TOC rail renders', async () => {
+    const processor = await createMarkdownProcessor({
+      rehypePlugins: [rehypeHeadingIds, rehypeHeadingAnchors, rehypeSidenotes],
+    });
+    const { metadata } = await processor.render('## The hardware\n\n### Deeper still');
+
+    expect(metadata.headings.map((heading) => heading.text)).toEqual([
+      'The hardware',
+      'Deeper still',
+    ]);
+  });
+
   it('does not touch the footnotes section heading', async () => {
     const html = await render('See below.[^1]\n\n[^1]: A note.');
     expect(html).not.toContain('id="footnote-label"><a href="#footnote-label"');
@@ -44,6 +56,27 @@ describe('rehypeSidenotes', () => {
   it('hides the original footnotes list from sighted users but keeps it for assistive tech', async () => {
     const html = await render('A claim.[^1]\n\n[^1]: The footnote text.');
     expect(html).toMatch(/<section[^>]*data-footnotes[^>]*class="[^"]*\bsr-only\b[^"]*"/);
+  });
+
+  it('keeps the text of a link the author wrote inside a footnote', async () => {
+    const html = await render(
+      'See below.[^1]\n\n[^1]: See [the docs](https://example.com) for details.',
+    );
+    const sidenote = html.slice(html.indexOf('<span class="sidenote"'));
+
+    expect(sidenote).toContain('the docs');
+    // The sidenote is aria-hidden, so it must not hold a focusable link -
+    // the real one lives on in the sr-only footnotes section.
+    expect(sidenote.slice(0, sidenote.indexOf('</p>'))).not.toContain('<a ');
+  });
+
+  it('carries over a footnote body that is not a single paragraph', async () => {
+    const html = await render('See below.[^1]\n\n[^1]:\n    - one\n    - two');
+    const sidenote = html.slice(html.indexOf('<span class="sidenote"'));
+    // Whitespace collapses on render; only the words themselves matter.
+    const text = sidenote.slice(0, sidenote.indexOf('</p>')).replace(/\s+/g, ' ');
+
+    expect(text).toContain('one two');
   });
 
   it('does nothing when there are no footnotes', async () => {
