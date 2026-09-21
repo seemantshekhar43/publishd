@@ -63,6 +63,19 @@ function jsonResponse(status: number, body: unknown): Response {
   });
 }
 
+/**
+ * `asset.path` is joined directly into `assets/<slug>/<path>` by
+ * `assetPath()` in content-repo.ts with no normalisation, so this is the
+ * only place a `..` segment or an absolute path gets rejected before it can
+ * reach the GitHub commit.
+ */
+function isSafeAssetPath(path: string): boolean {
+  if (path.length === 0 || path.startsWith('/') || path.includes('\\')) {
+    return false;
+  }
+  return path.split('/').every((segment) => segment !== '' && segment !== '.' && segment !== '..');
+}
+
 function parseAssets(value: unknown): AssetInput[] | undefined {
   if (value === undefined) {
     return [];
@@ -76,6 +89,7 @@ function parseAssets(value: unknown): AssetInput[] | undefined {
       typeof entry !== 'object' ||
       entry === null ||
       typeof (entry as Record<string, unknown>).path !== 'string' ||
+      !isSafeAssetPath((entry as { path: string }).path) ||
       typeof (entry as Record<string, unknown>).data !== 'string'
     ) {
       return undefined;

@@ -123,7 +123,7 @@ export async function resolveEmbeds(
         continue;
       }
       const bytes = await fs.readBytes(absolutePath);
-      destFilename = filename;
+      destFilename = relativePath.replace(/[/\\]+/g, '-');
       seen.set(absolutePath, destFilename);
       assets.push({
         path: destFilename,

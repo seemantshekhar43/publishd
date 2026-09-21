@@ -124,6 +124,36 @@ describe('POST /api/ingest', () => {
     expect(deps.octokit.createCommit).not.toHaveBeenCalled();
   });
 
+  it('rejects an asset path that escapes assets/<slug>/ with 422 and writes nothing', async () => {
+    const deps = buildDeps();
+    const handler = createIngestHandler(deps);
+
+    const response = await handler({
+      request: request({
+        ...validPayload,
+        assets: [{ path: '../../.github/workflows/deploy.yml', data: 'ZGF0YQ==' }],
+      }),
+    } as Parameters<typeof handler>[0]);
+
+    expect(response.status).toBe(422);
+    expect(deps.octokit.createCommit).not.toHaveBeenCalled();
+  });
+
+  it('rejects an absolute asset path with 422 and writes nothing', async () => {
+    const deps = buildDeps();
+    const handler = createIngestHandler(deps);
+
+    const response = await handler({
+      request: request({
+        ...validPayload,
+        assets: [{ path: '/etc/passwd', data: 'ZGF0YQ==' }],
+      }),
+    } as Parameters<typeof handler>[0]);
+
+    expect(response.status).toBe(422);
+    expect(deps.octokit.createCommit).not.toHaveBeenCalled();
+  });
+
   it('commits a valid published article and returns its live URL', async () => {
     const deps = buildDeps();
     const handler = createIngestHandler(deps);

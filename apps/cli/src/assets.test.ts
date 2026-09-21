@@ -83,6 +83,35 @@ describe('resolveEmbeds', () => {
     expect(result.assets).toHaveLength(2);
   });
 
+  it('keeps embeds with the same filename in different subfolders as distinct assets', async () => {
+    const fs = buildFs({
+      '/vault/foo/screenshot.png': 'foo-bytes',
+      '/vault/bar/screenshot.png': 'bar-bytes',
+    });
+
+    const result = await resolveEmbeds(
+      fs,
+      '![[foo/screenshot.png]] and ![[bar/screenshot.png]]',
+      { fileDir: '/vault', vaultRoot: '/vault', slug: 'my-post' },
+    );
+
+    expect(result.body).toBe(
+      '![](/assets/my-post/foo-screenshot.png) and ![](/assets/my-post/bar-screenshot.png)',
+    );
+    expect(result.assets).toEqual([
+      {
+        path: 'foo-screenshot.png',
+        contentType: 'image/png',
+        data: Buffer.from('foo-bytes').toString('base64'),
+      },
+      {
+        path: 'bar-screenshot.png',
+        contentType: 'image/png',
+        data: Buffer.from('bar-bytes').toString('base64'),
+      },
+    ]);
+  });
+
   it('leaves a missing embed as plain text and warns, rather than breaking the page', async () => {
     const fs = buildFs({});
 
