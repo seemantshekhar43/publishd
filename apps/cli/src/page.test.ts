@@ -4,7 +4,7 @@ import { extractShekseMeta, extractTitleTag, resolvePageFrontmatter } from './pa
 const SAMPLE_HTML = `<!doctype html>
 <html>
 <head>
-  <title>PRD - publish.shekse.com</title>
+  <title>PRD - publish.example.com</title>
   <meta name="shekse:slug" content="prd-publishd">
   <meta name="shekse:type" content="doc">
   <meta name="shekse:summary" content="Product requirements, settled over four review rounds.">
@@ -44,7 +44,7 @@ describe('extractShekseMeta', () => {
 
 describe('extractTitleTag', () => {
   it('extracts the <title> text', () => {
-    expect(extractTitleTag(SAMPLE_HTML)).toBe('PRD - publish.shekse.com');
+    expect(extractTitleTag(SAMPLE_HTML)).toBe('PRD - publish.example.com');
   });
 
   it('decodes common HTML entities', () => {
@@ -62,7 +62,7 @@ describe('resolvePageFrontmatter', () => {
   it('resolves every documented field from <meta> tags', () => {
     const resolved = resolvePageFrontmatter(SAMPLE_HTML, {});
     expect(resolved).toEqual({
-      title: 'PRD - publish.shekse.com',
+      title: 'PRD - publish.example.com',
       slug: 'prd-publishd',
       type: 'doc',
       summary: 'Product requirements, settled over four review rounds.',
