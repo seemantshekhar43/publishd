@@ -42,7 +42,17 @@ export default tseslint.config(
     // TS-aware pass that covers the rest of the codebase's .ts files.
     files: ['**/scripts/**/*.mjs'],
     languageOptions: {
-      globals: { process: 'readonly', console: 'readonly', Buffer: 'readonly' },
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        Buffer: 'readonly',
+        URL: 'readonly',
+        fetch: 'readonly',
+        Response: 'readonly',
+        AbortController: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+      },
     },
     rules: { 'no-console': ['warn', { allow: ['warn', 'error', 'log'] }] },
   },
