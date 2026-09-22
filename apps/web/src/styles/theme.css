@@ -203,6 +203,12 @@ body {
   overflow-x: auto;
 }
 
+/* overflow-x on a bare <table> (display: table) doesn't create a scroll
+   container in Chromium - force it to a block box so it actually scrolls. */
+.prose table {
+  display: block;
+}
+
 /* A thin, token-colored scrollbar for the overflow-x targets above -
    the unstyled OS default clashes with the cream palette. Firefox reads
    scrollbar-color; everything else reads the ::-webkit-scrollbar* rules. */
