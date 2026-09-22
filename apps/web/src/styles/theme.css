@@ -203,6 +203,41 @@ body {
   overflow-x: auto;
 }
 
+/* A thin, token-colored scrollbar for the overflow-x targets above -
+   the unstyled OS default clashes with the cream palette. Firefox reads
+   scrollbar-color; everything else reads the ::-webkit-scrollbar* rules. */
+.prose pre,
+.prose table,
+.prose :has(> svg) {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.prose pre::-webkit-scrollbar,
+.prose table::-webkit-scrollbar,
+.prose :has(> svg)::-webkit-scrollbar {
+  height: 6px;
+}
+
+.prose pre::-webkit-scrollbar-track,
+.prose table::-webkit-scrollbar-track,
+.prose :has(> svg)::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.prose pre::-webkit-scrollbar-thumb,
+.prose table::-webkit-scrollbar-thumb,
+.prose :has(> svg)::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 3px;
+}
+
+.prose pre::-webkit-scrollbar-thumb:hover,
+.prose table::-webkit-scrollbar-thumb:hover,
+.prose :has(> svg)::-webkit-scrollbar-thumb:hover {
+  background-color: var(--mute);
+}
+
 /* Shiki dual-theme output (see posts-loader.ts and lib/shiki-themes.ts):
    `defaultColor: false` means only these variables carry colour, so
    highlighting flips with `data-theme` the same way every other token

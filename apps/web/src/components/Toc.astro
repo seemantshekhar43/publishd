@@ -1,0 +1,106 @@
+---
+// The "on this page" rail - top-level headings only, no underline, and a
+// left accent bar tracking whichever section is scrolled into view. Shown
+// past TOC_MIN_HEADINGS total headings (including sub-headings) by the
+// caller, matching docs/design.md section 5's "thin sticky rail, never a
+// boxed card" rule. Shared by [slug].astro and preview/[uuid].astro so the
+// markup exists in exactly one place - see issue #62.
+import type { MarkdownHeading } from 'astro';
+
+interface Props {
+  headings: MarkdownHeading[];
+}
+
+const { headings } = Astro.props;
+const minDepth = Math.min(...headings.map((h) => h.depth));
+const topLevel = headings.filter((h) => h.depth === minDepth);
+---
+
+<div class="absolute inset-y-0 left-full ml-12 hidden w-[200px] min-[1200px]:block">
+  <nav
+    aria-label="Table of contents"
+    class="toc sticky top-8 border-l border-border pl-4 text-[13px] leading-relaxed"
+  >
+    <p class="m-0 mb-2 text-[11px] tracking-wide text-mute uppercase">On this page</p>
+    <ul class="m-0 list-none p-0">
+      {
+        topLevel.map((heading) => (
+          <li class="toc-item">
+            <a href={`#${heading.slug}`} class="text-mute no-underline">
+              {heading.text}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </nav>
+</div>
+
+<style>
+  .toc-item {
+    position: relative;
+    padding-block: 0.25rem;
+    padding-left: 0.75rem;
+    margin-left: -0.8125rem; /* offset the nav's own border so the bar can sit on it */
+    border-left: 1px solid transparent;
+  }
+
+  .toc-item.is-active {
+    border-left-color: var(--accent);
+  }
+
+  .toc-item.is-active a {
+    color: var(--text);
+  }
+</style>
+
+<script>
+  function wireToc(): void {
+    const nav = document.querySelector<HTMLElement>('nav.toc');
+    if (!nav || nav.dataset.tocWired === 'true') return;
+    nav.dataset.tocWired = 'true';
+
+    const items = [...nav.querySelectorAll<HTMLLIElement>('.toc-item')];
+    const targets = items
+      .map((item) => {
+        const slug = item.querySelector('a')?.getAttribute('href')?.slice(1);
+        const heading = slug ? document.getElementById(slug) : null;
+        return heading ? { item, heading } : undefined;
+      })
+      .filter((entry): entry is { item: HTMLLIElement; heading: HTMLElement } => entry !== undefined);
+
+    if (targets.length === 0) return;
+
+    function setActive(heading: Element): void {
+      for (const { item, heading: target } of targets) {
+        item.classList.toggle('is-active', target === heading);
+      }
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // The heading closest to the top of the viewport among those
+        // currently intersecting - not just "the first one seen", since
+        // entries arrive in DOM order, not visual order, as sections
+        // enter and leave together near a fast scroll.
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]) {
+          setActive(visible[0].target);
+        }
+      },
+      // Treat a heading as "current" once it's crossed into the top third
+      // of the viewport, and still current until it leaves through the
+      // bottom - a wide band beats triggering only at the exact top edge.
+      { rootMargin: '0px 0px -70% 0px' },
+    );
+
+    for (const { heading } of targets) {
+      observer.observe(heading);
+    }
+  }
+
+  wireToc();
+  document.addEventListener('astro:page-load', wireToc);
+</script>

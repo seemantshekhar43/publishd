@@ -314,6 +314,42 @@ describe('runPublish', () => {
     );
   });
 
+  it('reports a non-JSON error response (e.g. a platform-level 413) by falling back to its raw text', async () => {
+    const deps = buildDeps({
+      fetchImpl: vi.fn().mockResolvedValue(
+        new Response('Request Entity Too Large\n\nFUNCTION_PAYLOAD_TOO_LARGE', {
+          status: 413,
+          headers: { 'content-type': 'text/plain' },
+        }),
+      ),
+    });
+
+    const exitCode = await runPublish(buildOptions(), deps);
+
+    expect(exitCode).toBe(1);
+    expect(deps.log.error).toHaveBeenCalledWith(
+      expect.stringContaining('FUNCTION_PAYLOAD_TOO_LARGE'),
+    );
+  });
+
+  it('fails locally, before any network call, when the request would exceed the payload limit', async () => {
+    const deps = buildDeps({
+      readFileContent: vi
+        .fn()
+        .mockResolvedValue(`---\ntitle: Big post\n---\n\n![[huge.png]]\n`),
+      assetFs: {
+        readBytes: vi.fn().mockResolvedValue(Buffer.alloc(5 * 1024 * 1024, 'a')),
+        exists: vi.fn().mockResolvedValue(true),
+      },
+    });
+
+    const exitCode = await runPublish(buildOptions({ filePath: 'huge-note.md' }), deps);
+
+    expect(exitCode).toBe(1);
+    expect(deps.fetchImpl).not.toHaveBeenCalled();
+    expect(deps.log.error).toHaveBeenCalledWith(expect.stringContaining('MB'));
+  });
+
   it('warns when an existing article with the same title has a different slug', async () => {
     const deps = buildDeps({
       fetchImpl: vi.fn().mockImplementation((url: string) => {

@@ -6,6 +6,7 @@
 import { getCollection, render, type CollectionEntry } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import CopyButtons from '../components/CopyButtons.astro';
+import Toc from '../components/Toc.astro';
 import { estimateReadingMinutes, formatLongDate } from '../lib/format-date.js';
 import { getSiteConfig } from '../../../../site.config.js';
 import { buildBlogPostingJsonLd, resolveCanonicalUrl, resolveOgImagePath } from '../lib/seo.js';
@@ -111,26 +112,7 @@ const jsonLd = buildBlogPostingJsonLd({ siteConfig, post: post.data, lastmodMap 
       }
     </article>
 
-    {
-      showToc && (
-        <div class="absolute inset-y-0 left-full ml-12 hidden w-[200px] min-[1200px]:block">
-          <nav
-            aria-label="Table of contents"
-            class="sticky top-8 border-l border-border pl-4 text-[13px] leading-relaxed"
-          >
-            <ul class="m-0 list-none p-0">
-              {headings.map((heading) => (
-                <li style={{ paddingLeft: `${(heading.depth - Math.min(...headings.map((h) => h.depth))) * 0.75}rem` }}>
-                  <a href={`#${heading.slug}`} class="text-mute">
-                    {heading.text}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </div>
-      )
-    }
+    {showToc && <Toc headings={headings} />}
   </div>
   </div>
 
