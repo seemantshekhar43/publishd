@@ -7,16 +7,21 @@ import { getSiteConfig } from '../../../../site.config.js';
 
 const siteConfig = getSiteConfig();
 const githubUrl = `https://github.com/${siteConfig.author.github}`;
+const year = new Date().getFullYear();
 ---
 
 <footer class="mt-16 px-4 py-6">
-  <nav
-    aria-label="Footer"
-    class="measure mx-auto flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-6 text-[13px] text-mute"
+  <div
+    class="measure mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border pt-6 text-[13px] text-mute"
   >
-    <a href="/archive">Archive</a>
-    <a href="/tags">Tags</a>
-    <a href="/rss.xml">RSS</a>
-    <a href={githubUrl}>GitHub</a>
-  </nav>
+    <p class="m-0">
+      © {year} {siteConfig.title}. Built by {siteConfig.author.name}.
+    </p>
+    <nav aria-label="Footer" class="flex flex-wrap gap-x-4 gap-y-1">
+      <a href="/archive">Archive</a>
+      <a href="/tags">Tags</a>
+      <a href="/rss.xml">RSS</a>
+      <a href={githubUrl}>GitHub</a>
+    </nav>
+  </div>
 </footer>

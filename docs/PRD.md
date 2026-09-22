@@ -512,7 +512,7 @@ Both themes ship from day one:
 - **Heading anchors** (`#`) on hover, in the left margin.
 - **Code blocks** use Shiki with a theme matched to the site palette, not a stock Dracula. Copy button on hover.
 - **Footnotes** as margin sidenotes above 1100px, inline below.
-- **No table of contents** unless the article exceeds 6 headings, then a thin sticky rail, not a boxed card.
+- **No table of contents** unless the article exceeds 6 headings, then a thin sticky rail, not a boxed card - see [`docs/design.md`](design.md) section 5 for the rail's exact rules.
 - **View transitions** between index and article (Astro built-in), so the title appears to persist across navigation. Cheap, and the single most "designed" thing on the site.
 
 ### 9.7 Accessibility and performance budget

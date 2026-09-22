@@ -22,6 +22,15 @@ import {
 import { resolvePageFrontmatter } from './page.js';
 import type { PollOptions } from './poll.js';
 
+// Vercel's hard per-request body ceiling for serverless functions is
+// ~4.5MB; stay comfortably under it since the ingest payload adds JSON
+// framing (base64 assets, field names) on top of the raw file bytes.
+const MAX_REQUEST_BYTES = 4 * 1024 * 1024;
+
+function formatMegabytes(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
 export interface PublishOptions {
   filePath: string;
   status?: string | undefined;
@@ -171,6 +180,24 @@ export async function runPublish(
     return 0;
   }
 
+  const requestBody = JSON.stringify({ kind: options.kind, frontmatter, body, assets });
+
+  // Vercel's serverless functions hard-reject a request body over ~4.5MB
+  // before the ingest function even runs - no env var raises this, it's a
+  // platform ceiling. Catch it locally (before the best-effort slug-change
+  // check below, which would otherwise make a network call for a publish
+  // that's already doomed) so the author gets a clear reason and a next
+  // step, instead of sending a doomed request. See issue #61.
+  const requestBytes = Buffer.byteLength(requestBody, 'utf8');
+  if (requestBytes > MAX_REQUEST_BYTES) {
+    deps.log.error(
+      `this publish is ${formatMegabytes(requestBytes)} once encoded, over the ` +
+        `${formatMegabytes(MAX_REQUEST_BYTES)} Vercel allows per request - resize or drop some ` +
+        `of the ${assets.length} embedded image(s) and try again.`,
+    );
+    return 1;
+  }
+
   if (options.kind === 'article') {
     await warnOnSlugChange(frontmatter, deps, bypassHeaders);
   }
@@ -182,14 +209,25 @@ export async function runPublish(
       'content-type': 'application/json',
       ...bypassHeaders,
     },
-    body: JSON.stringify({ kind: options.kind, frontmatter, body, assets }),
+    body: requestBody,
   });
 
   if (!response.ok) {
-    const body = (await response.json().catch(() => ({
-      error: response.statusText,
-    }))) as IngestErrorBody;
-    deps.log.error(`publish failed (${response.status}): ${body.error}`);
+    // Not every error response is JSON - a platform-level rejection (e.g. a
+    // 413 from Vercel itself, before the ingest function runs) is plain
+    // text, and HTTP/2 responses carry no statusText to fall back on
+    // either. Read the body once as text, then try to parse it, since a
+    // response body can only be read once.
+    const rawBody = await response.text();
+    let errorBody: string;
+    try {
+      errorBody = (JSON.parse(rawBody) as IngestErrorBody).error;
+    } catch {
+      errorBody = rawBody;
+    }
+    deps.log.error(
+      `publish failed (${response.status}): ${errorBody || 'no further detail from the server'}`,
+    );
     return 1;
   }
 
