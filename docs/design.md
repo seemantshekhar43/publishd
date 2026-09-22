@@ -133,6 +133,11 @@ Enforced by Lighthouse CI. **A build that regresses this fails.**
 
 Plus: WCAG AA contrast minimum on both themes, and `prefers-reduced-motion` disables view transitions.
 
+Implementation notes (`lighthouserc.cjs`, `playwright.config.ts`, issue #29):
+
+- Lighthouse runs against the built static output (`staticDistDir`), not yet a live Vercel preview deployment - CI has no deploy-time access to one until the content-repo template work in issue #31 lands. "CLS 0" is asserted at `<= 0.01`: Lighthouse measures real sub-pixel movement from webfont loading even on a well-built static page, so a literal 0 would fail on measurement noise rather than a regression.
+- The "both themes" contrast check runs as a Playwright + axe-core pass (`visual/homepage-and-article.spec.ts`), not a second Lighthouse run - Lighthouse can't toggle `data-theme` between runs on its own. It also carries the homepage/article screenshot diffs.
+
 ---
 
 ## 7. Content style - frontmatter

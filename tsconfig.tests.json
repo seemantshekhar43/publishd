@@ -16,7 +16,9 @@
     "site.config.ts",
     "vitest.config.ts",
     "eslint.config.js",
-    "commitlint.config.js"
+    "commitlint.config.js",
+    "playwright.config.ts",
+    "visual/**/*.ts"
   ],
   "references": [
     { "path": "packages/schema" },

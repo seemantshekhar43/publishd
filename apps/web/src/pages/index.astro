@@ -14,8 +14,12 @@ const siteConfig = getSiteConfig();
 
 // postsLoader() only ever stores published posts - see
 // apps/web/src/content/posts-loader.ts. listed: false still gets a page,
-// just not a row here.
-const listedPosts = await getCollection('posts', ({ data }) => data.listed);
+// just not a row here. `type: doc` also stays out of the chronological
+// feed - see docs/PRD.md section 4.5 and issue #26.
+const listedPosts = await getCollection(
+  'posts',
+  ({ data }) => data.listed && data.type !== 'doc',
+);
 const sorted = listedPosts.sort((a, b) => b.data.date.localeCompare(a.data.date));
 const homepagePosts = sorted.slice(0, HOMEPAGE_LIMIT);
 const hasMore = sorted.length > HOMEPAGE_LIMIT;

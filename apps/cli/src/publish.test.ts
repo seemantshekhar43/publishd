@@ -25,16 +25,28 @@ function buildDeps(overrides: Partial<PublishDeps> = {}) {
   return {
     readStdin: vi.fn().mockResolvedValue(articleMarkdown),
     readFileContent: vi.fn().mockResolvedValue(articleMarkdown),
-    fetchImpl: vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          url: 'https://publish.example.test/hello-world',
-          slug: 'hello-world',
-          operation: 'create',
-        }),
-        { status: 200 },
-      ),
-    ),
+    // /api/list (the best-effort slug-change check) and /api/ingest get
+    // distinct responses, keyed by URL - a single shared Response instance
+    // can't be JSON-parsed twice. Defaults /api/list to "nothing on
+    // record", so the slug-change warning stays silent unless a test opts
+    // into it.
+    fetchImpl: vi.fn().mockImplementation((url: string) => {
+      if (url.endsWith('/api/list')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ articles: [] }), { status: 200 }),
+        );
+      }
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            url: 'https://publish.example.test/hello-world',
+            slug: 'hello-world',
+            operation: 'create',
+          }),
+          { status: 200 },
+        ),
+      );
+    }),
     endpoint: 'https://publish.example.test',
     token: 'super-secret-token',
     pollUntilLive: vi.fn().mockResolvedValue(undefined),
@@ -54,8 +66,15 @@ function buildDeps(overrides: Partial<PublishDeps> = {}) {
   };
 }
 
+function ingestCall(fetchImpl: Mock): [string, RequestInit] {
+  const call = fetchImpl.mock.calls.find(
+    ([url]) => typeof url === 'string' && url.endsWith('/api/ingest'),
+  );
+  return call as [string, RequestInit];
+}
+
 async function sentBody(fetchImpl: Mock): Promise<Record<string, unknown>> {
-  const [, requestInit] = fetchImpl.mock.calls[0] as [string, RequestInit];
+  const [, requestInit] = ingestCall(fetchImpl);
   return JSON.parse(requestInit.body as string) as Record<string, unknown>;
 }
 
@@ -166,10 +185,7 @@ describe('runPublish', () => {
 
     await runPublish(buildOptions(), deps);
 
-    const [, requestInit] = (deps.fetchImpl as Mock).mock.calls[0] as [
-      string,
-      RequestInit,
-    ];
+    const [, requestInit] = ingestCall(deps.fetchImpl as Mock);
     expect(requestInit.headers).not.toHaveProperty('x-vercel-protection-bypass');
   });
 
@@ -178,10 +194,7 @@ describe('runPublish', () => {
 
     await runPublish(buildOptions(), deps);
 
-    const [, requestInit] = (deps.fetchImpl as Mock).mock.calls[0] as [
-      string,
-      RequestInit,
-    ];
+    const [, requestInit] = ingestCall(deps.fetchImpl as Mock);
     expect(requestInit.headers).toMatchObject({
       'x-vercel-protection-bypass': 'bypass-secret',
     });
@@ -279,6 +292,75 @@ describe('runPublish', () => {
     expect(deps.log.error).toHaveBeenCalledWith(
       expect.stringContaining('frontmatter.type'),
     );
+  });
+
+  it('warns when an existing article with the same title has a different slug', async () => {
+    const deps = buildDeps({
+      fetchImpl: vi.fn().mockImplementation((url: string) => {
+        if (url.endsWith('/api/list')) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                articles: [
+                  { slug: 'hello-old', title: 'Hello world', status: 'published' },
+                ],
+              }),
+              { status: 200 },
+            ),
+          );
+        }
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              url: 'https://publish.example.test/hello-world',
+              slug: 'hello-world',
+              operation: 'update',
+            }),
+            { status: 200 },
+          ),
+        );
+      }),
+    });
+
+    await runPublish(buildOptions(), deps);
+
+    expect(deps.log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('"hello-old" to "hello-world"'),
+    );
+  });
+
+  it('does not warn on --dry-run - nothing is sent', async () => {
+    const deps = buildDeps();
+
+    await runPublish(buildOptions({ dryRun: true }), deps);
+
+    expect(deps.fetchImpl).not.toHaveBeenCalled();
+    expect(deps.log.warn).not.toHaveBeenCalled();
+  });
+
+  it('does not fail the publish when the slug-change check itself fails', async () => {
+    const deps = buildDeps({
+      fetchImpl: vi.fn().mockImplementation((url: string) => {
+        if (url.endsWith('/api/list')) {
+          return Promise.reject(new Error('network error'));
+        }
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              url: 'https://publish.example.test/hello-world',
+              slug: 'hello-world',
+              operation: 'create',
+            }),
+            { status: 200 },
+          ),
+        );
+      }),
+    });
+
+    const exitCode = await runPublish(buildOptions(), deps);
+
+    expect(exitCode).toBe(0);
+    expect(deps.log.warn).not.toHaveBeenCalled();
   });
 });
 

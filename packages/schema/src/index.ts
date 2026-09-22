@@ -37,6 +37,14 @@ export {
 export { SchemaValidationError, type SchemaIssue } from './errors.js';
 
 export {
+  parseRedirects,
+  findRedirectChains,
+  findMissingRedirects,
+  type RedirectEntry,
+  type MissingRedirect,
+} from './redirects.js';
+
+export {
   defineSiteConfig,
   type SiteConfig,
   type SiteConfigInput,

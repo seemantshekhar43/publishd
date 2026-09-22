@@ -10,9 +10,22 @@ export const prerender = false;
 
 import { getEntry } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { readRedirectsMap, resolveRedirect } from '../lib/redirects.js';
 
 const segments = Astro.params.slug?.split('/') ?? [];
-const archived = segments.length === 1 ? await getEntry('archived', segments[0] as string) : undefined;
+const requestedSlug = segments.length === 1 ? (segments[0] as string) : undefined;
+
+if (requestedSlug) {
+  const redirectsMap = await readRedirectsMap(
+    new URL('../content/redirects.json', import.meta.url).pathname,
+  );
+  const target = resolveRedirect(redirectsMap, requestedSlug);
+  if (target) {
+    return Astro.redirect(`/${target}`, 301);
+  }
+}
+
+const archived = requestedSlug ? await getEntry('archived', requestedSlug) : undefined;
 
 if (archived) {
   Astro.response.status = 410;

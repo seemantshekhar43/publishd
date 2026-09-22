@@ -1,0 +1,52 @@
+---
+// The tag cloud: every tag in use, sized by how many listed posts carry
+// it. See docs/PRD.md section 4.5 and issue #26.
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const listedPosts = await getCollection('posts', ({ data }) => data.listed);
+
+const counts = new Map<string, number>();
+for (const post of listedPosts) {
+  for (const tag of post.data.tags) {
+    counts.set(tag, (counts.get(tag) ?? 0) + 1);
+  }
+}
+
+const tags = [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+const maxCount = Math.max(1, ...counts.values());
+
+// Four size steps, proportional to count relative to the most-used tag -
+// enough visual range to read as a cloud without a tag with one extra use
+// jumping a whole step.
+function sizeClass(count: number): string {
+  const ratio = count / maxCount;
+  if (ratio > 0.75) return 'text-[22px]';
+  if (ratio > 0.5) return 'text-[19px]';
+  if (ratio > 0.25) return 'text-[16px]';
+  return 'text-[14px]';
+}
+---
+
+<BaseLayout title="Tags" description="Every tag in use, sized by how often it's used.">
+  <div class="measure mx-auto">
+    <a href="/" class="text-mute">← home</a>
+    <h1 class="mt-4 font-heading text-[24px] font-semibold">Tags</h1>
+    {
+      tags.length === 0 ? (
+        <p class="mt-12 text-mute">No tags yet.</p>
+      ) : (
+        <ul class="m-0 mt-8 flex list-none flex-wrap items-baseline gap-x-4 gap-y-2 p-0">
+          {tags.map(([tag, count]) => (
+            <li>
+              <a href={`/tags/${tag}`} class={sizeClass(count)}>
+                {tag}
+              </a>
+              <span class="ml-1 text-[12px] text-mute">{count}</span>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+</BaseLayout>

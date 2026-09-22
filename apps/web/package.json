@@ -10,10 +10,11 @@
     "predev": "pnpm --filter publishd-schema build && tsc -b ../../tsconfig.site-config.json && node scripts/sync-content.mjs",
     "pretypecheck": "pnpm --filter publishd-schema build",
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro build && pagefind --site dist/client",
     "preview": "astro preview",
     "typecheck": "astro check",
-    "check-links": "node scripts/check-links.mjs"
+    "check-links": "node scripts/check-links.mjs",
+    "check-tags": "node scripts/check-tags.mjs"
   },
   "dependencies": {
     "@astrojs/markdown-remark": "6.3.11",
@@ -40,6 +41,7 @@
   "devDependencies": {
     "@astrojs/check": "0.9.10",
     "@types/hast": "3.0.5",
+    "pagefind": "1.5.2",
     "png-to-ico": "3.0.2",
     "shiki": "3.23.0",
     "typescript": "^6.0.3",
