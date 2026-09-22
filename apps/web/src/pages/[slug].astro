@@ -68,13 +68,9 @@ const jsonLd = buildBlogPostingJsonLd({ siteConfig, post: post.data, lastmodMap 
   noindex={post.data.status === 'draft'}
   jsonLd={jsonLd}
 >
-  <div
-    class:list={[
-      'mx-auto flex max-w-[calc(68ch+220px+3rem)] items-start gap-12 px-4',
-      { 'has-toc': showToc },
-    ]}
-  >
-    <article class="measure mx-auto min-w-0">
+  <div class="px-4">
+  <div class:list={['relative measure mx-auto', { 'has-toc': showToc }]}>
+    <article class="min-w-0">
       <a href="/" class="text-mute">← home</a>
 
       <p class="mt-6 text-[13px] tracking-wide text-mute uppercase">
@@ -117,22 +113,25 @@ const jsonLd = buildBlogPostingJsonLd({ siteConfig, post: post.data, lastmodMap 
 
     {
       showToc && (
-        <nav
-          aria-label="Table of contents"
-          class="sticky top-8 hidden w-[200px] shrink-0 border-l border-border pl-4 text-[13px] leading-relaxed min-[1100px]:block"
-        >
-          <ul class="m-0 list-none p-0">
-            {headings.map((heading) => (
-              <li style={{ paddingLeft: `${(heading.depth - Math.min(...headings.map((h) => h.depth))) * 0.75}rem` }}>
-                <a href={`#${heading.slug}`} class="text-mute">
-                  {heading.text}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <div class="absolute inset-y-0 left-full ml-12 hidden w-[200px] min-[1200px]:block">
+          <nav
+            aria-label="Table of contents"
+            class="sticky top-8 border-l border-border pl-4 text-[13px] leading-relaxed"
+          >
+            <ul class="m-0 list-none p-0">
+              {headings.map((heading) => (
+                <li style={{ paddingLeft: `${(heading.depth - Math.min(...headings.map((h) => h.depth))) * 0.75}rem` }}>
+                  <a href={`#${heading.slug}`} class="text-mute">
+                    {heading.text}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
       )
     }
+  </div>
   </div>
 
   <CopyButtons />
