@@ -95,6 +95,26 @@ describe('runPublish', () => {
     expect(deps.log.info).toHaveBeenCalledWith('live');
   });
 
+  it('does not fail the publish when the poll for "live" times out - the commit already succeeded', async () => {
+    const deps = buildDeps({
+      pollUntilLive: vi
+        .fn()
+        .mockRejectedValue(new Error('timed out waiting for it to go live')),
+    });
+
+    const exitCode = await runPublish(buildOptions(), deps);
+
+    expect(exitCode).toBe(0);
+    expect(deps.log.info).toHaveBeenCalledWith(
+      'https://publish.example.test/hello-world',
+    );
+    expect(deps.log.info).not.toHaveBeenCalledWith('live');
+    expect(deps.log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('https://publish.example.test/hello-world'),
+    );
+    expect(deps.log.error).not.toHaveBeenCalled();
+  });
+
   it('never echoes the token anywhere', async () => {
     const deps = buildDeps();
 

@@ -199,8 +199,19 @@ export async function runPublish(
   }
   deps.log.info(result.url);
 
-  await deps.pollUntilLive(result.url, deps.fetchImpl, undefined, bypassHeaders);
-  deps.log.info('live');
+  // The commit above is the actual publish - it already succeeded. Waiting
+  // for the build to go live is a courtesy, not a precondition: a queued
+  // deploy hook (e.g. from several publishes in a row) can outlast the poll
+  // budget in poll.ts even though the build finishes moments later. Treat a
+  // timeout here as a warning, never as a publish failure - see issue #58.
+  try {
+    await deps.pollUntilLive(result.url, deps.fetchImpl, undefined, bypassHeaders);
+    deps.log.info('live');
+  } catch {
+    deps.log.warn(
+      `${result.url} is still building - the publish succeeded, but the build did not finish within the poll window. Check back shortly.`,
+    );
+  }
 
   if (options.open) {
     deps.openUrl(result.url);
