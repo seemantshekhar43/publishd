@@ -11,11 +11,21 @@ export const prerender = true;
 
 export const GET: APIRoute = async () => {
   const siteConfig = getSiteConfig();
-  const posts = await getCollection('posts');
-  const items = buildFeedItems(
-    siteConfig,
-    posts.map((post) => post.data),
-  );
+  const [posts, pages] = await Promise.all([
+    getCollection('posts'),
+    getCollection('pages'),
+  ]);
+  const items = [
+    ...buildFeedItems(
+      siteConfig,
+      posts.map((post) => post.data),
+    ),
+    ...buildFeedItems(
+      siteConfig,
+      pages.map((page) => page.data),
+      'p/',
+    ),
+  ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
   return rss({
     title: siteConfig.title,

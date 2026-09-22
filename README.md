@@ -41,6 +41,12 @@ A small serverless endpoint validates your markdown and commits it to a git repo
 - **Markdown in, permanent URLs out.** Republishing the same file updates the same URL.
 - **Self-contained HTML pages too**, served verbatim, for things like interactive artifacts and reports.
 
+## HTML pages run on the site's own origin
+
+An HTML `page` (`--kind page`) is stored and served **verbatim** at `/p/<slug>` - the pipeline reads its `<meta name="shekse:*">` tags for metadata and otherwise never touches it. That means a page's own JavaScript runs on `publish.shekse.com`'s origin, same-origin with every other page on the site.
+
+This is safe **only because the site has no cookies, no login, and no authenticated surface to steal from.** There is nothing for a page's script to exfiltrate. **If a deployment ever adds authentication, pages must move to a separate origin first** - a sandboxed `<iframe>` or a dedicated subdomain, not a runtime sanitiser. Sanitising HTML well enough to be a real security boundary is a losing game and would defeat the point of serving an artifact verbatim; the ingest token, not the document's contents, is what's actually trusted here.
+
 ## Integrations
 
 | Integration | What it does |

@@ -19,6 +19,7 @@ import {
   type AssetFs,
   type AssetPayload,
 } from './assets.js';
+import { resolvePageFrontmatter } from './page.js';
 import type { PollOptions } from './poll.js';
 
 export interface PublishOptions {
@@ -80,10 +81,8 @@ export async function runPublish(
   options: PublishOptions,
   deps: PublishDeps,
 ): Promise<number> {
-  if (options.kind !== 'article') {
-    deps.log.error(
-      `kind "${options.kind}" is not supported yet - only "article" (see issue #21)`,
-    );
+  if (options.kind !== 'article' && options.kind !== 'page') {
+    deps.log.error(`kind "${options.kind}" is not supported - only "article" or "page"`);
     return 1;
   }
 
@@ -91,25 +90,41 @@ export async function runPublish(
     options.filePath === '-'
       ? await deps.readStdin()
       : await deps.readFileContent(options.filePath);
-  const { data, content } = matter(raw);
 
-  const overrides: Partial<ArticleFrontmatterInput> = {};
-  if (options.status !== undefined) {
-    overrides.status = options.status as ContentStatus;
-  }
-  if (options.type !== undefined) {
-    overrides.type = options.type as ContentType;
-  }
-  if (options.tags !== undefined) {
-    overrides.tags = options.tags
-      .split(',')
-      .map((tag) => tag.trim())
-      .filter((tag) => tag.length > 0);
+  let frontmatterInput: Record<string, unknown>;
+  let body: string;
+  if (options.kind === 'page') {
+    // A page has no YAML frontmatter to parse - the whole file is the
+    // body, verbatim, and metadata comes from its own <meta> tags per
+    // docs/content-schema.md section 2.
+    frontmatterInput = resolvePageFrontmatter(raw, {
+      status: options.status,
+      type: options.type,
+      tags: options.tags,
+    });
+    body = raw;
+  } else {
+    const { data, content } = matter(raw);
+    const overrides: Partial<ArticleFrontmatterInput> = {};
+    if (options.status !== undefined) {
+      overrides.status = options.status as ContentStatus;
+    }
+    if (options.type !== undefined) {
+      overrides.type = options.type as ContentType;
+    }
+    if (options.tags !== undefined) {
+      overrides.tags = options.tags
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0);
+    }
+    frontmatterInput = { ...data, ...overrides };
+    body = content;
   }
 
   let frontmatter: ArticleFrontmatter;
   try {
-    frontmatter = parseArticleFrontmatter({ ...data, ...overrides });
+    frontmatter = parseArticleFrontmatter(frontmatterInput);
   } catch (error) {
     if (error instanceof SchemaValidationError) {
       // Caught locally, before any network call - see issue #7 acceptance criteria.
@@ -119,14 +134,14 @@ export async function runPublish(
     throw error;
   }
 
-  // Reading from stdin means no file, and no file means no vault to
-  // resolve embeds against - skip rather than guess a directory.
-  let body = content;
+  // Embeds are a markdown-only construct; a page is self-contained HTML
+  // with no vault to resolve anything against. Reading from stdin means
+  // no file either way, so skip rather than guess a directory.
   let assets: AssetPayload[] = [];
-  if (options.filePath !== '-') {
+  if (options.kind === 'article' && options.filePath !== '-') {
     const fileDir = dirname(options.filePath);
     const vaultRoot = await findVaultRoot(deps.assetFs, fileDir);
-    const resolved = await resolveEmbeds(deps.assetFs, content, {
+    const resolved = await resolveEmbeds(deps.assetFs, body, {
       fileDir,
       vaultRoot,
       slug: frontmatter.slug,
@@ -163,7 +178,7 @@ export async function runPublish(
       'content-type': 'application/json',
       ...bypassHeaders,
     },
-    body: JSON.stringify({ kind: 'article', frontmatter, body, assets }),
+    body: JSON.stringify({ kind: options.kind, frontmatter, body, assets }),
   });
 
   if (!response.ok) {

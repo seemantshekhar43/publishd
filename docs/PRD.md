@@ -115,7 +115,7 @@ So that inkloop artifacts and other self-contained HTML can be published through
 | --- | --- | --- |
 | Input | `.md` / `.mdx` | One self-contained `.html` file |
 | Processing | Parsed, normalised, rendered into the site layout | **None.** Served verbatim. |
-| Metadata | YAML frontmatter | `<meta name="shekse:*">` tags, falling back to `<title>` and CLI flags |
+| Metadata | YAML frontmatter | `<meta name="shekse:*">` tags; see docs/content-schema.md section 2 for the full resolution order |
 | Site chrome | Full header, footer, theme | None. The artifact owns the whole page. |
 | RSS, search, feed | Yes | Yes, listed like posts. `listed: false` hides one. |
 | URL | `/<slug>` | `/p/<slug>`, a separate namespace |

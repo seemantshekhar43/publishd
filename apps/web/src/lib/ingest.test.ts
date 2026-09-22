@@ -42,6 +42,7 @@ function buildDeps(overrides: Partial<IngestHandlerDeps> = {}): IngestHandlerDep
     target,
     siteUrl: 'https://publish.example.test',
     previewSecret: 'test-preview-secret',
+    htmlPagesEnabled: true,
     ...overrides,
   };
 }
@@ -387,6 +388,123 @@ describe('POST /api/ingest', () => {
     } as Parameters<typeof handler>[0]);
 
     expect(response.status).toBe(502);
+  });
+});
+
+const pageHtml = '<!doctype html><html><body><h1>Hello</h1></body></html>';
+
+describe('POST /api/ingest - kind: page', () => {
+  it('commits a published page and returns its /p/<slug> url', async () => {
+    const deps = buildDeps();
+    const handler = createIngestHandler(deps);
+
+    const response = await handler({
+      request: request({
+        kind: 'page',
+        frontmatter: { title: 'An inkloop artifact', status: 'published' },
+        body: pageHtml,
+      }),
+    } as Parameters<typeof handler>[0]);
+
+    expect(response.status).toBe(200);
+    const json = (await response.json()) as { url: string; slug: string };
+    expect(json.slug).toBe('an-inkloop-artifact');
+    expect(json.url).toBe('https://publish.example.test/p/an-inkloop-artifact');
+  });
+
+  it('commits the html byte-for-byte, in a separate file from its resolved frontmatter', async () => {
+    const deps = buildDeps();
+    const handler = createIngestHandler(deps);
+
+    await handler({
+      request: request({
+        kind: 'page',
+        frontmatter: { title: 'An inkloop artifact', status: 'published' },
+        body: pageHtml,
+      }),
+    } as Parameters<typeof handler>[0]);
+
+    const tree = vi.mocked(deps.octokit.createTree).mock.calls[0]?.[0] as {
+      tree: { path: string }[];
+    };
+    expect(tree.tree.map((entry) => entry.path).sort()).toEqual([
+      'pages/2026/an-inkloop-artifact.html',
+      'pages/2026/an-inkloop-artifact.json',
+    ]);
+    const htmlBlobContent =
+      vi.mocked(deps.octokit.createBlob).mock.calls[0]?.[0].content ?? '';
+    expect(Buffer.from(htmlBlobContent, 'base64').toString('utf8')).toBe(pageHtml);
+  });
+
+  it('commits a draft page and returns a /preview/<uuid> url instead', async () => {
+    const deps = buildDeps();
+    const handler = createIngestHandler(deps);
+
+    const response = await handler({
+      request: request({
+        kind: 'page',
+        frontmatter: { title: 'A draft artifact', status: 'draft' },
+        body: pageHtml,
+      }),
+    } as Parameters<typeof handler>[0]);
+
+    expect(response.status).toBe(200);
+    const json = (await response.json()) as { url: string };
+    expect(json.url).toMatch(
+      /^https:\/\/publish\.example\.test\/preview\/[0-9a-f-]{36}$/,
+    );
+  });
+
+  it('does not run Obsidian normalisation on a page body', async () => {
+    const deps = buildDeps();
+    const handler = createIngestHandler(deps);
+
+    await handler({
+      request: request({
+        kind: 'page',
+        frontmatter: { title: 'Has brackets', status: 'published' },
+        body: '<html><body>Not [[a wikilink]] or a #tag, just text.</body></html>',
+      }),
+    } as Parameters<typeof handler>[0]);
+
+    expect(deps.octokit.getTree).not.toHaveBeenCalled();
+    const htmlBlobContent =
+      vi.mocked(deps.octokit.createBlob).mock.calls[0]?.[0].content ?? '';
+    expect(Buffer.from(htmlBlobContent, 'base64').toString('utf8')).toContain(
+      '[[a wikilink]]',
+    );
+  });
+
+  it('rejects kind "page" with 422 when the deployment has htmlPages disabled', async () => {
+    const deps = buildDeps({ htmlPagesEnabled: false });
+    const handler = createIngestHandler(deps);
+
+    const response = await handler({
+      request: request({
+        kind: 'page',
+        frontmatter: { title: 'An inkloop artifact', status: 'published' },
+        body: pageHtml,
+      }),
+    } as Parameters<typeof handler>[0]);
+
+    expect(response.status).toBe(422);
+    expect(deps.octokit.createCommit).not.toHaveBeenCalled();
+  });
+
+  it('rejects a page with a schema violation the same way as an article', async () => {
+    const deps = buildDeps();
+    const handler = createIngestHandler(deps);
+
+    const response = await handler({
+      request: request({
+        kind: 'page',
+        frontmatter: { title: 'x', type: 'not-a-real-type' },
+        body: pageHtml,
+      }),
+    } as Parameters<typeof handler>[0]);
+
+    expect(response.status).toBe(422);
+    expect(deps.octokit.createCommit).not.toHaveBeenCalled();
   });
 });
 
