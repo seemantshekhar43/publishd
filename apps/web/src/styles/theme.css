@@ -112,7 +112,7 @@
   }
 
   h3 {
-    font-size: 19px;
+    font-size: 21px;
   }
 
   code,
@@ -139,16 +139,19 @@
   }
 }
 
-/* The single-column reading measure: 68ch, no sidebar. See docs/design.md
-   section 4. Code, tables, and diagrams may break out to 76ch. */
+/* The single-column reading measure: 640px (40rem), no sidebar. See
+   docs/design.md section 4. `ch` is the width of "0", not the average
+   glyph - at 17px Inter that made 68ch render as ~86 characters/line, well
+   past the 640px cluster the reference sites (paco.me, rauno.me,
+   overreacted.io, et al.) measure at. Code, tables, and diagrams may break
+   out to 76ch. */
 .measure {
-  max-width: 68ch;
+  max-width: 40rem;
 }
 
-/* Half of that measure, as an absolute length. Registered so the `ch`
-   resolves once, against the body's 17px, instead of against the type size
-   of whichever element reads it - the sidenote geometry below is 13px and
-   needs the same number `.measure` uses. */
+/* Half of that measure, as an absolute length - the sidenote geometry below
+   needs the same number `.measure` uses, regardless of the type size of
+   whichever element reads it. */
 @property --half-measure {
   syntax: '<length>';
   inherits: true;
@@ -156,7 +159,7 @@
 }
 
 body {
-  --half-measure: 34ch;
+  --half-measure: 20rem;
 }
 
 .measure-wide {
@@ -182,7 +185,15 @@ body {
   --tw-prose-td-borders: var(--border);
   font-size: 17px;
   line-height: 1.68;
-  max-width: 68ch;
+  max-width: 40rem;
+}
+
+.prose :where(p):not(:where([class~='not-prose'] *)) {
+  /* Typography plugin's default (1.25em top+bottom) renders ~43px here -
+     1.7x the reference sites' 18-28px field median. See docs/design.md
+     section 4 and issue #46. */
+  margin-top: 1em;
+  margin-bottom: 1em;
 }
 
 .prose pre,
@@ -318,14 +329,14 @@ h3:hover .heading-anchor,
   );
 }
 
-/* With a TOC rail present ([slug].astro), the wrapper's max-width stops
-   centring the column and shifts it 130px left, and the rail itself takes
-   the first 200px + 3rem of the margin - 134px less room for the sidenote,
-   net. */
+/* With a TOC rail present ([slug].astro), the rail sits in the same margin
+   a sidenote would float into - 3rem gap plus its own 200px width past the
+   article's right edge. A has-toc sidenote needs to clear that footprint
+   before it gets its own gap and width. */
 .has-toc .sidenote {
   --sidenote-width: min(
     200px,
-    calc(50vw - var(--half-measure) - var(--sidenote-gap) - 134px)
+    calc(50vw - var(--half-measure) - var(--sidenote-gap) - 15.5rem - 1rem)
   );
 }
 

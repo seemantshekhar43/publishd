@@ -72,7 +72,7 @@ for (const post of homepagePosts) {
                   </div>
                   <div class="mt-0.5 flex items-start justify-between gap-4">
                     {post.data.summary ? (
-                      <p class="m-0 hidden text-[14px] leading-snug text-mute group-hover:block group-focus-within:block">
+                      <p class="m-0 text-[14px] leading-snug text-mute opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 max-[720px]:opacity-100">
                         {post.data.summary}
                       </p>
                     ) : (

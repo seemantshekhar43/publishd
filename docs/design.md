@@ -77,7 +77,7 @@ Two neutrals plus one accent. No secondary accent. No semantic colour scale beyo
 | Role | Face | Size | Weight |
 | --- | --- | --- | --- |
 | Article body | Inter | 17px / 1.68 | 400 |
-| Headings | Inter Tight | 32 / 24 / 19px | 600, tight tracking |
+| Headings | Inter Tight | 32 / 24 / 21px | 600, tight tracking |
 | UI, meta, dates | Inter | 14px | 450 |
 | Code | JetBrains Mono | 14px | 400 |
 
@@ -89,9 +89,9 @@ Give every face a real fallback stack. Never leave text on the browser serif def
 
 ## 4. Layout
 
-- **One column, centred, no sidebar.** Measure capped at **68ch**.
+- **One column, centred, no sidebar.** Measure capped at **40rem (640px)**. `ch` is the width of "0", not the average glyph - at 17px Inter, 68ch rendered as ~86 characters/line, well past what the measured reference sites (paco.me, rauno.me, overreacted.io, et al.) cluster at.
 - Code blocks, tables, and diagrams may break out to 76ch, each in its own `overflow-x: auto` container.
-- 8px spacing base. Paragraph spacing runs about 1.5x line-height - the most common mistake here is cramming.
+- 8px spacing base. Paragraph spacing is about 1x line-height (~1em) - the reference sites' field median is 18-28px; 1.5x line-height measured at 43px, well past that.
 - One breakpoint at 720px collapsing multi-column layouts to a single column.
 - Side gutter of at least 16px at every width. The page body must never scroll horizontally.
 
@@ -101,6 +101,8 @@ Give every face a real fallback stack. Never leave text on the browser serif def
 
 | Component | Rule |
 | --- | --- |
+| Header | Static (not fixed) 64px rail: wordmark left, linking home; search (⌘K) and theme toggle right. Same left edge as the article/homepage column below it. |
+| Footer | Archive / Tags / RSS / GitHub, same on every page - homepage, archive, tags, and articles |
 | Headings | Anchor link (`#`) appears on hover, in the left margin |
 | Code blocks | Shiki, themed from the site's own CSS variables so highlighting flips with the theme. Never a stock Dracula. Copy button on hover. |
 | Footnotes | Margin sidenotes above 1100px, inline below |

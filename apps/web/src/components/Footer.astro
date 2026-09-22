@@ -1,0 +1,22 @@
+---
+// Site-wide footer: the nav links the header used to carry (issue #46).
+// Same on every page - homepage, archive, tags, and articles - so there is
+// always a way back to Archive/Tags/RSS/GitHub. See docs/design.md
+// section 5 and docs/PRD.md section 4.6.
+import { getSiteConfig } from '../../../../site.config.js';
+
+const siteConfig = getSiteConfig();
+const githubUrl = `https://github.com/${siteConfig.author.github}`;
+---
+
+<footer class="mt-16 px-4 py-6">
+  <nav
+    aria-label="Footer"
+    class="measure mx-auto flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-6 text-[13px] text-mute"
+  >
+    <a href="/archive">Archive</a>
+    <a href="/tags">Tags</a>
+    <a href="/rss.xml">RSS</a>
+    <a href={githubUrl}>GitHub</a>
+  </nav>
+</footer>

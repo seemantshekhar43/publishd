@@ -202,7 +202,9 @@ A CI check flags any tag used only once, so the list stays small without governa
 ### 4.6 Homepage: a reading list, not a dashboard
 
 ```
-Shekhar                                  ⌘K   ☾
+shekse                                    ⌘K   ☾   ← persistent 64px header rail
+──────────────────────────────────────────────
+Shekhar
 Notes on homelab infrastructure, distributed
 systems, and tools I build.
 
@@ -215,7 +217,8 @@ Cloudflare Tunnel vs Tailscale Funnel     Sep 14
 Rebuilding my homelab on NixOS            Dec 18
                                             POST
 
-Archive · Tags · RSS · GitHub
+──────────────────────────────────────────────
+Archive · Tags · RSS · GitHub             ← site-wide footer, every page
 ```
 
 - **Reverse chronological, grouped by year.** No pagination for the first 30, then "Archive".
@@ -454,13 +457,13 @@ Two neutrals plus one accent. No secondary accent, no semantic colour scale beyo
 | Role | Face | Size |
 | --- | --- | --- |
 | Article body | Inter, 400, 1.68 line-height | 17px |
-| Headings | Inter Tight, 600, tight tracking | 32 / 24 / 19px |
+| Headings | Inter Tight, 600, tight tracking | 32 / 24 / 21px |
 | UI, meta, dates | Inter, 450 | 14px |
 | Code | JetBrains Mono | 14px |
 
 All-sans gives up the serif signal, so the design earns its character elsewhere: the warm cream ground, the burnt-orange accent, generous spacing, and layout restraint. Body drops from 19px to 17px because Inter runs optically larger than a serif at the same size.
 
-Measure capped at **68ch** - one column, centred, no sidebar. 8px spacing base with generous vertical rhythm; paragraph spacing about 1.5x line-height.
+Measure capped at **40rem (640px)** - one column, centred, no sidebar. `ch` is the width of "0", not the average glyph, so a `ch`-based measure reads wider than intended. 8px spacing base with generous vertical rhythm; paragraph spacing about 1x line-height.
 
 ### 9.3 Pages
 
