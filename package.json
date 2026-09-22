@@ -19,6 +19,7 @@
   },
   "scripts": {
     "build": "tsc -b && pnpm --filter @publishd/web build",
+    "check-links": "pnpm --filter @publishd/web check-links",
     "clean": "tsc -b --clean && rm -rf dist apps/*/dist packages/*/dist apps/web/.vercel",
     "dev": "pnpm -r --parallel --if-present dev",
     "format": "prettier --write .",

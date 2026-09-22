@@ -41,6 +41,11 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # Internal broken links fail the build; external ones only warn - a
+      # third-party outage must never block a deploy. See issue #28.
+      - name: Check links
+        run: pnpm check-links
+
   identity:
     name: no hardcoded identity
     runs-on: ubuntu-latest
