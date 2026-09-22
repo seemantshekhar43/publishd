@@ -21,7 +21,7 @@ publishd ./my-note.md
 
 ## Current status
 
-**M1 in progress, not yet deployed.** `packages/schema` (the frontmatter contract), `apps/web` (the Astro site skeleton and the `/api/ingest` endpoint), and `apps/cli` (the `publishd` binary) all exist and are tested. What is still missing: the private content repo (issue #5) and the live Vercel/DNS/1Password deployment (issue #9), so there is no `publish.shekse.com` yet and the pipeline has not been proven end to end (issue #10).
+**M1 done and deployed.** `packages/schema` (the frontmatter contract), `apps/web` (the Astro site skeleton and the `/api/ingest` endpoint), and `apps/cli` (the `publishd` binary) all exist and are tested. The private content repo (issue #5) and the live Vercel/DNS deployment (issue #9) are in place, `publish.shekse.com` is live, and the full publish -> draft preview -> real publish flow has been proven end to end (issue #10), including embedded image assets.
 
 Do not assume any file, package, script, or command described in the docs exists yet without checking - large parts of M2 onward are still specification, not description.
 
