@@ -30,6 +30,8 @@ apps/web/src/content/pages/*
 !apps/web/src/content/pages/.gitkeep
 apps/web/src/content/.lastmod.json
 apps/web/src/content/redirects.json
+apps/web/public/assets/*
+!apps/web/public/assets/.gitkeep
 
 # env + secrets
 .env

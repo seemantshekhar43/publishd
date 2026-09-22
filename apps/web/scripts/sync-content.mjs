@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
- * Populates apps/web/src/content/posts/ and apps/web/src/content/pages/
- * from the private content repo before the site builds - see
- * docs/architecture.md section 2 for why the two repos are separate, and
- * issue #39 for why this script exists (issue #21 for the pages/ half).
+ * Populates apps/web/src/content/posts/, apps/web/src/content/pages/, and
+ * apps/web/public/assets/ from the private content repo before the site
+ * builds - see docs/architecture.md section 2 for why the two repos are
+ * separate, issue #39 for why this script exists (issue #21 for the
+ * pages/ half, issue #65 for the assets/ half).
  *
  * Skips gracefully with no error when GITHUB_TOKEN is unset, so local dev
  * without content-repo access still works exactly as it did before this
@@ -28,6 +29,10 @@ const POSTS_DIR = join(CONTENT_DIR, 'posts');
 const PAGES_DIR = join(CONTENT_DIR, 'pages');
 const LASTMOD_PATH = join(CONTENT_DIR, '.lastmod.json');
 const REDIRECTS_PATH = join(CONTENT_DIR, 'redirects.json');
+// Astro serves public/ byte-identical at the same path, so an asset synced
+// here to public/assets/<slug>/<file> is reachable at exactly the URL
+// content-repo.ts's assetPath() already generates - no route needed.
+const ASSETS_DIR = join(SCRIPT_DIR, '..', 'public', 'assets');
 
 async function listFiles(octokit, owner, repo, ref, path, extensions) {
   const { data } = await octokit.repos.getContent({ owner, repo, ref, path });
@@ -61,12 +66,15 @@ async function latestCommitDate(octokit, owner, repo, ref, path) {
   return date;
 }
 
-async function clearGeneratedDir(dir) {
+/** Clears every entry in `dir` except `.gitkeep`. `recursive` handles
+ * nested directories - posts/pages entries are always flat files, but
+ * assets nest as `<slug>/<file>`. */
+async function clearGeneratedDir(dir, { recursive = false } = {}) {
   const entries = await readdir(dir).catch(() => []);
   await Promise.all(
     entries
       .filter((name) => name !== '.gitkeep')
-      .map((name) => rm(join(dir, name), { force: true })),
+      .map((name) => rm(join(dir, name), { force: true, recursive })),
   );
 }
 
@@ -115,7 +123,7 @@ async function syncDirectory(
   return paths;
 }
 
-async function main() {
+export async function main() {
   const token = process.env.GITHUB_TOKEN;
   if (!token) {
     console.log(
@@ -169,6 +177,11 @@ async function main() {
   );
 
   await syncRedirects(octokit, owner, repo, branch);
+
+  const assetPaths = await syncAssets(octokit, owner, repo, branch);
+  console.log(
+    `[sync-content] synced ${assetPaths.length} asset file(s) from ${owner}/${repo}@${branch}`,
+  );
 }
 
 /** `redirects.json` lives at the content repo root, not under `posts/` or
@@ -198,7 +211,77 @@ async function syncRedirects(octokit, owner, repo, branch) {
   }
 }
 
-main().catch((error) => {
-  console.error('[sync-content] failed:', error);
-  process.exitCode = 1;
-});
+/**
+ * Syncs every file under `assets/` in the content repo into
+ * `apps/web/public/assets/`, preserving the `<slug>/<file>` nesting so the
+ * result is reachable at exactly the `/assets/<slug>/<file>` URL
+ * `content-repo.ts`'s `assetPath()` already generates. Unlike
+ * `syncDirectory()` (used for posts/pages), this writes raw bytes, not a
+ * UTF-8 string - forcing an image through a UTF-8 decode/re-encode round
+ * trip corrupts it. See issue #65: nothing previously synced these at all,
+ * so every embedded image 404'd on the live site despite a successful
+ * publish.
+ */
+async function syncAssets(octokit, owner, repo, branch) {
+  await mkdir(ASSETS_DIR, { recursive: true });
+  await clearGeneratedDir(ASSETS_DIR, { recursive: true });
+
+  let paths;
+  try {
+    paths = (await listFiles(octokit, owner, repo, branch, 'assets', [''])).filter(
+      (path) => !path.endsWith('.gitkeep'),
+    );
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
+      console.log(
+        `[sync-content] no assets/ directory on ${owner}/${repo}@${branch} yet`,
+      );
+      return [];
+    }
+    throw error;
+  }
+
+  for (const path of paths) {
+    const { data } = await octokit.repos.getContent({ owner, repo, ref: branch, path });
+    if (Array.isArray(data) || data.type !== 'file') {
+      continue;
+    }
+
+    let bytes;
+    if (data.content) {
+      bytes = Buffer.from(data.content, 'base64');
+    } else if (data.download_url) {
+      // GitHub only inlines content under ~1MB - fall back to a plain
+      // fetch rather than silently dropping the asset, since a dropped
+      // image is exactly the bug this function exists to fix.
+      const response = await fetch(data.download_url);
+      bytes = Buffer.from(await response.arrayBuffer());
+    } else {
+      console.warn(
+        `[sync-content] skipping ${path}: no content or download_url available`,
+      );
+      continue;
+    }
+
+    // path is `assets/<slug>/<file>` - strip the leading `assets/` since
+    // ASSETS_DIR already points at .../public/assets.
+    const relativePath = path.slice('assets/'.length);
+    const destPath = join(ASSETS_DIR, relativePath);
+    await mkdir(dirname(destPath), { recursive: true });
+    await writeFile(destPath, bytes);
+  }
+
+  return paths;
+}
+
+// Only auto-run when this file is the actual entry point (`node
+// sync-content.mjs`, or the pretypecheck/prebuild script that invokes it
+// the same way) - not when a test imports it for `main`. Without this
+// guard, a build-integration test importing this module for its exports
+// would also trigger a second, untracked `main()` run racing its own.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((error) => {
+    console.error('[sync-content] failed:', error);
+    process.exitCode = 1;
+  });
+}

@@ -71,14 +71,17 @@ afterAll(async () => {
 describe('sync-content.mjs', () => {
   it('syncs pages/ from the content repo into src/content/pages, not just posts/', async () => {
     process.env.GITHUB_TOKEN = 'fake-token-for-test';
-    const scriptUrl = new URL('../scripts/sync-content.mjs', import.meta.url);
-    await import(scriptUrl.href);
+    // Calls the exported `main` directly rather than relying on
+    // import-time side effects: this script is also imported by
+    // sync-content-assets.build.test.ts in the same process, and Node's
+    // module cache is process-global, not reset per test file - a plain
+    // side-effecting `import()` of the same URL from two files races.
+    const { main } = await import('../scripts/sync-content.mjs');
+    await main();
 
-    await vi.waitFor(async () => {
-      const entries = await readdir(pagesDir);
-      expect(entries).toContain('landing.html');
-      expect(entries).toContain('landing.json');
-    });
+    const entries = await readdir(pagesDir);
+    expect(entries).toContain('landing.html');
+    expect(entries).toContain('landing.json');
 
     const postEntries = await readdir(postsDir);
     expect(postEntries).toContain('hello.md');
