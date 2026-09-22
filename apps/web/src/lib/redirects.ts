@@ -1,22 +1,24 @@
 /**
  * `redirects.json` lives at the content repo root and is synced fresh on
  * every build, the same way `.lastmod.json` is - see `lastmod.ts` and
- * `scripts/sync-content.mjs`. Served as 301s from `[...slug].astro`. See
- * docs/content-schema.md section 3.
+ * `scripts/sync-content.mjs`. Served as 301s from `[...slug].astro`, which
+ * imports the synced file directly so it's bundled into the build (and the
+ * deployed Vercel function) rather than read from disk at request time.
+ * See docs/content-schema.md section 3.
  */
 
-import { readFile } from 'node:fs/promises';
 import { parseRedirects, type RedirectEntry } from 'publishd-schema';
 
 export type RedirectsMap = ReadonlyMap<string, string>;
 
-/** Reads the synced file, or an empty map when it doesn't exist (no
- * `GITHUB_TOKEN` during local dev) or fails to parse. */
-export async function readRedirectsMap(path: string): Promise<RedirectsMap> {
+/** Builds the lookup map from the parsed `redirects.json` contents, or an
+ * empty map when it's malformed (should only happen if the sync step wrote
+ * something unexpected - see `syncRedirects` in `scripts/sync-content.mjs`,
+ * which always writes at least `[]`). */
+export function buildRedirectsMap(raw: unknown): RedirectsMap {
   let entries: RedirectEntry[];
   try {
-    const raw = await readFile(path, 'utf-8');
-    entries = parseRedirects(JSON.parse(raw));
+    entries = parseRedirects(raw);
   } catch {
     return new Map();
   }

@@ -121,6 +121,9 @@ async function main() {
     console.log(
       '[sync-content] GITHUB_TOKEN not set - skipping, using local content only',
     );
+    // `[...slug].astro` imports redirects.json as a module, so it must exist
+    // even when there's no content-repo access to sync a real one from.
+    await writeFile(REDIRECTS_PATH, '[]', 'utf-8');
     return;
   }
 

@@ -5,7 +5,7 @@ import { defineConfig, devices } from '@playwright/test';
  * "on a design-led site those are the regressions that matter." Runs
  * against a built, previewed site (not `astro dev`, whose HMR client and
  * unminified output would never match production) with fixture content
- * copied in first - see `visual/global-setup.ts`.
+ * copied in first - see `scripts/run-visual-tests.mjs`.
  */
 export default defineConfig({
   testDir: 'visual',

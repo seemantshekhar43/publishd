@@ -8,7 +8,7 @@
   "scripts": {
     "prebuild": "pnpm --filter publishd-schema build && tsc -b ../../tsconfig.site-config.json && node scripts/sync-content.mjs",
     "predev": "pnpm --filter publishd-schema build && tsc -b ../../tsconfig.site-config.json && node scripts/sync-content.mjs",
-    "pretypecheck": "pnpm --filter publishd-schema build",
+    "pretypecheck": "pnpm --filter publishd-schema build && tsc -b ../../tsconfig.site-config.json && node scripts/sync-content.mjs",
     "dev": "astro dev",
     "build": "astro build && pagefind --site dist/client",
     "preview": "astro preview",
