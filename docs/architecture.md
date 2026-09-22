@@ -134,7 +134,7 @@ Content-Type: application/json
 4. **Resolve the slug** and determine create vs update. The slug is the primary key, so republishing the same slug is an update, producing a `publish: update <slug>` commit.
 5. **Commit** via the GitHub API, one commit per publish, including any assets.
 
-The function returns the final URL immediately. It does not wait for the build. The CLI polls the deploy and prints `live` when it completes.
+The function returns the final URL immediately. It does not wait for the build. The CLI polls the deploy and prints `live` when it completes. If the poll times out - e.g. several publishes queue back-to-back builds on Vercel - the CLI warns instead of failing, since the commit already succeeded; only the "wait and confirm live" step timed out.
 
 ### Latency budget
 
@@ -155,6 +155,7 @@ The 60-second end-to-end figure in the PRD is the metric that decides whether th
 | GitHub API down | 502. The CLI retries with backoff. Nothing is half-written, because it is one commit. |
 | Content CI fails after commit | The deploy hook never fires. The site keeps serving the previous build. |
 | Build fails | Vercel keeps the last good deployment live. ntfy alert fires. |
+| Poll for "live" times out | Not a failure: the commit already succeeded. The CLI warns and exits 0. |
 
 The design goal is that **no failure produces a broken published site** - the worst case is that a publish does not appear.
 
