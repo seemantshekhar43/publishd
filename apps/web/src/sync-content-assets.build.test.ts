@@ -18,6 +18,10 @@ const pngBytes = Buffer.from([
   0xfd,
 ]);
 
+// Stands in for a file over GitHub's ~1MB inline-content threshold, where
+// the Contents API omits `content` and returns only `download_url`.
+const largeBytes = Buffer.from([0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77]);
+
 vi.mock('@octokit/rest', () => {
   const fileContents: Record<string, Buffer> = {
     'assets/hello-world/thumbnail.png': pngBytes,
@@ -44,7 +48,21 @@ vi.mock('@octokit/rest', () => {
                 name: 'thumbnail.png',
                 path: 'assets/hello-world/thumbnail.png',
               },
+              {
+                type: 'file',
+                name: 'large.bin',
+                path: 'assets/hello-world/large.bin',
+              },
             ],
+          };
+        }
+        if (path === 'assets/hello-world/large.bin') {
+          return {
+            data: {
+              type: 'file',
+              content: null,
+              download_url: 'https://example.invalid/large.bin',
+            },
           };
         }
         if (fileContents[path] !== undefined) {
@@ -68,10 +86,19 @@ vi.mock('@octokit/rest', () => {
   return { Octokit };
 });
 
+const originalFetch = global.fetch;
+global.fetch = vi.fn(async (url: string | URL) => {
+  if (url.toString() === 'https://example.invalid/large.bin') {
+    return new Response(largeBytes);
+  }
+  return originalFetch(url as never);
+}) as typeof fetch;
+
 const assetsDir = fileURLToPath(new URL('../public/assets/', import.meta.url));
 
 afterAll(async () => {
   await rm(`${assetsDir}hello-world`, { recursive: true, force: true });
+  global.fetch = originalFetch;
 });
 
 describe('sync-content.mjs', () => {
@@ -90,5 +117,14 @@ describe('sync-content.mjs', () => {
 
     const written = await readFile(`${assetsDir}hello-world/thumbnail.png`);
     expect(written.equals(pngBytes)).toBe(true);
+  });
+
+  it('falls back to download_url for files over the inline-content size threshold', async () => {
+    process.env.GITHUB_TOKEN = 'fake-token-for-test';
+    const { main } = await import('../scripts/sync-content.mjs');
+    await main();
+
+    const written = await readFile(`${assetsDir}hello-world/large.bin`);
+    expect(written.equals(largeBytes)).toBe(true);
   });
 });
