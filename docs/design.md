@@ -102,11 +102,11 @@ Give every face a real fallback stack. Never leave text on the browser serif def
 | Component | Rule |
 | --- | --- |
 | Header | Static (not fixed) 64px rail: wordmark left, linking home; search (⌘K) and theme toggle right. Same left edge as the article/homepage column below it. |
-| Footer | Archive / Tags / RSS / GitHub, same on every page - homepage, archive, tags, and articles |
+| Footer | Copyright line (left) plus Archive / Tags / RSS / GitHub (right), same on every page - homepage, archive, tags, and articles |
 | Headings | Anchor link (`#`) appears on hover, in the left margin |
 | Code blocks | Shiki, themed from the site's own CSS variables so highlighting flips with the theme. Never a stock Dracula. Copy button on hover. |
 | Footnotes | Margin sidenotes above 1100px, inline below |
-| Table of contents | Only if the article exceeds 6 headings, and then a thin sticky rail, never a boxed card |
+| Table of contents | Only if the article exceeds 6 headings, and then a thin sticky rail, never a boxed card. Top-level headings only, no underline, accent-bar scrollspy for the section in view |
 | Images | 1px border in light mode, slight desaturation in dark so light-background screenshots do not glare |
 | Links | Accent coloured, underline at 35% accent that goes solid on hover |
 | Focus rings | Always visible, accent coloured, never removed |
