@@ -1,0 +1,248 @@
+---
+// The Pagefind-backed command palette - the site's only interactive JS
+// island (docs/PRD.md section 4.6 and section 5, issue #25). Opened by
+// Cmd/Ctrl+K or the visible button next to ThemeToggle. Pagefind's index
+// and its runtime JS are both built-output artifacts (`pagefind --site
+// dist/client`, wired into `pnpm build`) - `/pagefind/pagefind.js` only
+// exists after a real build, so this loads it lazily on first open rather
+// than importing it eagerly, keeping it off the homepage's JS budget
+// until someone actually searches.
+---
+
+<button
+  id="search-trigger"
+  type="button"
+  aria-label="Search"
+  title="Search (⌘K)"
+  class="inline-flex h-8 w-8 items-center justify-center rounded-md text-mute hover:text-text focus-visible:outline-2 focus-visible:outline-accent"
+>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    class="h-4 w-4"
+    aria-hidden="true"
+  >
+    <circle cx="11" cy="11" r="7"></circle>
+    <path d="m21 21-4.3-4.3"></path>
+  </svg>
+</button>
+
+<dialog
+  id="search-dialog"
+  aria-label="Search"
+  class="m-0 mt-[10vh] w-[min(560px,calc(100vw-2rem))] max-w-none rounded-lg border border-border bg-bg p-0 text-text backdrop:bg-black/40"
+>
+  <div class="flex items-center gap-2 border-b border-border px-4 py-3">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="h-4 w-4 shrink-0 text-mute"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="7"></circle>
+      <path d="m21 21-4.3-4.3"></path>
+    </svg>
+    <input
+      id="search-input"
+      type="text"
+      placeholder="Search..."
+      autocomplete="off"
+      spellcheck="false"
+      class="w-full border-0 bg-transparent text-[15px] outline-none placeholder:text-mute"
+    />
+    <kbd class="shrink-0 rounded border border-border px-1.5 py-0.5 text-[11px] text-mute"
+      >esc</kbd
+    >
+  </div>
+  <ul
+    id="search-results"
+    class="m-0 max-h-[50vh] list-none overflow-y-auto p-0"
+    role="listbox"
+  ></ul>
+  <p id="search-empty" class="m-0 hidden px-4 py-8 text-center text-[13px] text-mute">
+    No results.
+  </p>
+</dialog>
+
+<script>
+  // Astro's ClientRouter swaps <body> on navigation and marks this module
+  // script as already-executed (see ThemeToggle.astro's comment on the
+  // same mechanism), so every DOM lookup and listener here is rebound on
+  // `astro:page-load`, not just on first load.
+  interface PagefindResult {
+    url: string;
+    meta: { title?: string };
+    excerpt: string;
+  }
+
+  interface PagefindSearchResultRef {
+    id: string;
+    data(): Promise<PagefindResult>;
+  }
+
+  interface PagefindApi {
+    search(query: string): Promise<{ results: PagefindSearchResultRef[] }>;
+  }
+
+  let pagefind: PagefindApi | null = null;
+
+  async function loadPagefind(): Promise<PagefindApi> {
+    if (pagefind) return pagefind;
+    // No package to type this import against - it's a build-output file
+    // (`pagefind --site dist/client`, wired into `pnpm build`) that only
+    // exists after a real build. @vite-ignore so Vite doesn't try to
+    // resolve it at bundle time either.
+    const specifier = '/pagefind/pagefind.js';
+    const mod = (await import(/* @vite-ignore */ specifier)) as PagefindApi;
+    pagefind = mod;
+    return mod;
+  }
+
+  function getDialog(): HTMLDialogElement | null {
+    return document.getElementById('search-dialog') as HTMLDialogElement | null;
+  }
+
+  function focusableElements(container: HTMLElement): HTMLElement[] {
+    return Array.from(
+      container.querySelectorAll<HTMLElement>(
+        'input, [href], button, [tabindex]:not([tabindex="-1"])',
+      ),
+    );
+  }
+
+  function trapFocus(event: KeyboardEvent) {
+    if (event.key !== 'Tab') return;
+    const dialog = getDialog();
+    if (!dialog) return;
+    const elements = focusableElements(dialog);
+    if (elements.length === 0) return;
+    const first = elements[0] as HTMLElement;
+    const last = elements[elements.length - 1] as HTMLElement;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  async function renderResults(query: string) {
+    const list = document.getElementById('search-results');
+    const empty = document.getElementById('search-empty');
+    if (!list || !empty) return;
+
+    if (query.trim().length === 0) {
+      list.replaceChildren();
+      empty.classList.add('hidden');
+      return;
+    }
+
+    const mod = await loadPagefind();
+    const { results } = await mod.search(query);
+    const entries = await Promise.all(results.slice(0, 10).map((result) => result.data()));
+
+    list.replaceChildren();
+    empty.classList.toggle('hidden', entries.length > 0);
+
+    for (const entry of entries) {
+      const item = document.createElement('li');
+      item.setAttribute('role', 'option');
+      const link = document.createElement('a');
+      link.href = entry.url;
+      link.className = 'block border-b border-border px-4 py-3 last:border-b-0';
+      const title = document.createElement('div');
+      title.className = 'font-[450]';
+      title.textContent = entry.meta.title ?? entry.url;
+      const excerpt = document.createElement('div');
+      excerpt.className = 'mt-0.5 text-[13px] text-mute';
+      excerpt.innerHTML = entry.excerpt;
+      link.append(title, excerpt);
+      item.append(link);
+      list.append(item);
+    }
+  }
+
+  function openDialog() {
+    const dialog = getDialog();
+    if (!dialog || dialog.open) return;
+    dialog.showModal();
+    const input = document.getElementById('search-input') as HTMLInputElement | null;
+    input?.focus();
+  }
+
+  function closeDialog() {
+    const dialog = getDialog();
+    if (dialog?.open) dialog.close();
+  }
+
+  function wireElements() {
+    const dialog = getDialog();
+    const trigger = document.getElementById('search-trigger');
+    const input = document.getElementById('search-input') as HTMLInputElement | null;
+    if (!dialog || dialog.dataset.wired) return;
+    dialog.dataset.wired = 'true';
+
+    trigger?.addEventListener('click', openDialog);
+
+    // Closing via the backdrop (a click that lands on <dialog> itself,
+    // outside its content) or Escape - <dialog>'s own Escape handling
+    // already closes it, this just clears the input for next time.
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) closeDialog();
+    });
+    dialog.addEventListener('close', () => {
+      if (input) input.value = '';
+      const list = document.getElementById('search-results');
+      list?.replaceChildren();
+      document.getElementById('search-empty')?.classList.add('hidden');
+    });
+    dialog.addEventListener('keydown', trapFocus);
+
+    input?.addEventListener('input', () => {
+      void renderResults(input.value);
+    });
+  }
+
+  // The Cmd/Ctrl+K listener is bound to `document`, which a client-side
+  // navigation never replaces (only <body> is swapped - see
+  // ThemeToggle.astro's comment on the same ClientRouter mechanism), so
+  // it's wired exactly once, ever, module-scoped - re-running
+  // `wireElements()` per page-load would otherwise stack a new listener
+  // per navigation, each closing over a detached, out-of-date <dialog>.
+  let globalKeydownWired = false;
+  function wireGlobalShortcut() {
+    if (globalKeydownWired) return;
+    globalKeydownWired = true;
+    document.addEventListener('keydown', (event) => {
+      const isMod = event.metaKey || event.ctrlKey;
+      if (isMod && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        const dialog = getDialog();
+        if (dialog?.open) {
+          closeDialog();
+        } else {
+          openDialog();
+        }
+      }
+    });
+  }
+
+  function wire() {
+    wireElements();
+    wireGlobalShortcut();
+  }
+
+  wire();
+  document.addEventListener('astro:page-load', wire);
+</script>

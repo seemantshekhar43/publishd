@@ -27,6 +27,7 @@ const CONTENT_DIR = join(SCRIPT_DIR, '..', 'src', 'content');
 const POSTS_DIR = join(CONTENT_DIR, 'posts');
 const PAGES_DIR = join(CONTENT_DIR, 'pages');
 const LASTMOD_PATH = join(CONTENT_DIR, '.lastmod.json');
+const REDIRECTS_PATH = join(CONTENT_DIR, 'redirects.json');
 
 async function listFiles(octokit, owner, repo, ref, path, extensions) {
   const { data } = await octokit.repos.getContent({ owner, repo, ref, path });
@@ -120,6 +121,9 @@ async function main() {
     console.log(
       '[sync-content] GITHUB_TOKEN not set - skipping, using local content only',
     );
+    // `[...slug].astro` imports redirects.json as a module, so it must exist
+    // even when there's no content-repo access to sync a real one from.
+    await writeFile(REDIRECTS_PATH, '[]', 'utf-8');
     return;
   }
 
@@ -163,6 +167,35 @@ async function main() {
   console.log(
     `[sync-content] synced ${pagePaths.length} page file(s) from ${owner}/${repo}@${branch}`,
   );
+
+  await syncRedirects(octokit, owner, repo, branch);
+}
+
+/** `redirects.json` lives at the content repo root, not under `posts/` or
+ * `pages/` - see docs/content-schema.md section 3. Writes `[]` when the
+ * file doesn't exist yet, same graceful-skip shape as `syncDirectory`. */
+async function syncRedirects(octokit, owner, repo, branch) {
+  try {
+    const { data } = await octokit.repos.getContent({
+      owner,
+      repo,
+      ref: branch,
+      path: 'redirects.json',
+    });
+    if (Array.isArray(data) || data.type !== 'file' || !data.content) {
+      throw new Error('redirects.json is not a regular file');
+    }
+    const raw = Buffer.from(data.content, 'base64').toString('utf-8');
+    await writeFile(REDIRECTS_PATH, raw, 'utf-8');
+    console.log(`[sync-content] synced redirects.json from ${owner}/${repo}@${branch}`);
+  } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
+      await writeFile(REDIRECTS_PATH, '[]', 'utf-8');
+      console.log(`[sync-content] no redirects.json on ${owner}/${repo}@${branch} yet`);
+      return;
+    }
+    throw error;
+  }
 }
 
 main().catch((error) => {

@@ -86,6 +86,10 @@ export async function runPublish(
     return 1;
   }
 
+  const bypassHeaders: Record<string, string> = deps.protectionBypass
+    ? { 'x-vercel-protection-bypass': deps.protectionBypass }
+    : {};
+
   const raw =
     options.filePath === '-'
       ? await deps.readStdin()
@@ -167,9 +171,9 @@ export async function runPublish(
     return 0;
   }
 
-  const bypassHeaders: Record<string, string> = deps.protectionBypass
-    ? { 'x-vercel-protection-bypass': deps.protectionBypass }
-    : {};
+  if (options.kind === 'article') {
+    await warnOnSlugChange(frontmatter, deps, bypassHeaders);
+  }
 
   const response = await deps.fetchImpl(`${deps.endpoint}/api/ingest`, {
     method: 'POST',
@@ -203,4 +207,50 @@ export async function runPublish(
   }
 
   return 0;
+}
+
+interface ExistingArticle {
+  slug: string;
+  title: string;
+  status: string;
+}
+
+/**
+ * Best-effort local warning for issue #27's "the CLI warns when a publish
+ * would change an existing slug" - the real enforcement is the
+ * content-repo CI guard (`redirects.json`, `findMissingRedirects` in
+ * `publishd-schema`); this just saves a round trip when it can. Matches by
+ * title against `/api/list` since the slug itself is the thing that may
+ * have changed. Never fails the publish - a network hiccup here is not a
+ * reason to block one.
+ */
+async function warnOnSlugChange(
+  frontmatter: ArticleFrontmatter,
+  deps: PublishDeps,
+  bypassHeaders: Record<string, string>,
+): Promise<void> {
+  try {
+    const response = await deps.fetchImpl(`${deps.endpoint}/api/list`, {
+      headers: { authorization: `Bearer ${deps.token}`, ...bypassHeaders },
+    });
+    if (!response.ok) {
+      return;
+    }
+    const body = (await response.json()) as { articles?: ExistingArticle[] };
+    const existing = (body.articles ?? []).find(
+      (article) =>
+        article.status !== 'archived' &&
+        article.title.toLowerCase() === frontmatter.title.toLowerCase() &&
+        article.slug !== frontmatter.slug,
+    );
+    if (existing) {
+      deps.log.warn(
+        `this publish changes the slug for "${frontmatter.title}" from "${existing.slug}" ` +
+          `to "${frontmatter.slug}" - add a redirects.json entry (${existing.slug} -> ${frontmatter.slug}) ` +
+          `in the content repo, or CI will fail the change.`,
+      );
+    }
+  } catch {
+    // Best-effort only - see the doc comment above.
+  }
 }

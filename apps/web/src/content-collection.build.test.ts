@@ -26,23 +26,39 @@ const distDir = fileURLToPath(new URL('../dist/client/', import.meta.url));
 
 const publishedFixture = `${postsDir}published-post.md`;
 const draftFixture = `${postsDir}draft-post.md`;
+const taggedFixture = `${postsDir}tagged-post.md`;
+const tilFixture = `${postsDir}til-post.md`;
+const docFixture = `${postsDir}doc-post.md`;
+const allFixtures = [
+  publishedFixture,
+  draftFixture,
+  taggedFixture,
+  tilFixture,
+  docFixture,
+];
 
 const PREVIEW_SECRET = 'build-test-preview-secret';
 
 beforeAll(() => {
   mkdirSync(postsDir, { recursive: true });
-  execFileSync('cp', [`${fixturesDir}published-post.md`, publishedFixture]);
-  execFileSync('cp', [`${fixturesDir}draft-post.md`, draftFixture]);
-  execFileSync('pnpm', ['exec', 'astro', 'build'], {
+  for (const fixture of allFixtures) {
+    execFileSync('cp', [`${fixturesDir}${fixture.split('/').pop()}`, fixture]);
+  }
+  const env = { ...process.env, PUBLISHD_PREVIEW_SECRET: PREVIEW_SECRET };
+  execFileSync('pnpm', ['exec', 'astro', 'build'], { cwd: webRoot, stdio: 'pipe', env });
+  // Same as the `build` script (issue #25) - a separate step here so a
+  // pagefind failure surfaces as its own error rather than astro build's.
+  execFileSync('pnpm', ['exec', 'pagefind', '--site', 'dist/client'], {
     cwd: webRoot,
     stdio: 'pipe',
-    env: { ...process.env, PUBLISHD_PREVIEW_SECRET: PREVIEW_SECRET },
+    env,
   });
 }, 120_000);
 
 afterAll(() => {
-  rmSync(publishedFixture, { force: true });
-  rmSync(draftFixture, { force: true });
+  for (const fixture of allFixtures) {
+    rmSync(fixture, { force: true });
+  }
 });
 
 describe('the content-collection build pipeline', () => {
@@ -88,6 +104,12 @@ describe('per-page SEO surface (issue #17)', () => {
     expect(html).toContain(
       `<meta property="og:image" content="${siteUrl}/og/a-test-fixture-post.png">`,
     );
+
+    // No older/newer post exists for this single fixture - next/prev nav
+    // must degrade to a placeholder, never an <a> with no href (not
+    // crawlable - Lighthouse's SEO audit flags it, and so does a real
+    // crawler). See issue #29.
+    expect(html).not.toMatch(/<a(?:\s+class="[^"]*")?\s*>/);
 
     const jsonLdMatch = html.match(
       /<script type="application\/ld\+json">([^<]+)<\/script>/,
@@ -135,5 +157,70 @@ describe('per-page SEO surface (issue #17)', () => {
     expect(existsSync(`${distDir}icon-192-maskable.png`)).toBe(true);
     expect(existsSync(`${distDir}icon-512-maskable.png`)).toBe(true);
     expect(existsSync(`${distDir}site.webmanifest`)).toBe(true);
+  });
+});
+
+/**
+ * Issue #26 acceptance criteria: every tag has a working page, a `/til`
+ * route exists, and `type: doc` stays out of the chronological feed.
+ */
+describe('tag and type pages (issue #26)', () => {
+  it('lists every tag on /tags, sized by count', () => {
+    const html = readFileSync(`${distDir}tags/index.html`, 'utf-8');
+    expect(html).toContain('homelab');
+    expect(html).toContain('kubernetes');
+  });
+
+  it('renders /tags/<tag> with the matching posts', () => {
+    const html = readFileSync(`${distDir}tags/homelab/index.html`, 'utf-8');
+    expect(html).toContain('A Tagged Fixture Post');
+    expect(html).not.toContain('A Test Fixture Post');
+  });
+
+  it('renders /til with type: til entries, date-led', () => {
+    const html = readFileSync(`${distDir}til/index.html`, 'utf-8');
+    expect(html).toContain('A TIL Fixture Post');
+    expect(html).not.toContain('A Test Fixture Post');
+  });
+
+  it('keeps type: doc out of the homepage, /archive, and the feeds', () => {
+    const homepage = readFileSync(`${distDir}index.html`, 'utf-8');
+    expect(homepage).not.toContain('A Doc Fixture Post');
+
+    const archive = readFileSync(`${distDir}archive/index.html`, 'utf-8');
+    expect(archive).not.toContain('A Doc Fixture Post');
+
+    const rss = readFileSync(`${distDir}rss.xml`, 'utf-8');
+    expect(rss).not.toContain('A Doc Fixture Post');
+    const feed = readFileSync(`${distDir}feed.json`, 'utf-8');
+    expect(feed).not.toContain('A Doc Fixture Post');
+  });
+
+  it('still renders the doc entry at its own /<slug>', () => {
+    expect(existsSync(`${distDir}a-doc-fixture-post/index.html`)).toBe(true);
+  });
+});
+
+/**
+ * Issue #25 acceptance criteria: Pagefind indexes the built output, the
+ * command palette is present on every page, and a draft never appears in
+ * the index.
+ */
+describe('search (issue #25)', () => {
+  it('generates a pagefind index over the built output', () => {
+    expect(existsSync(`${distDir}pagefind/pagefind.js`)).toBe(true);
+    expect(existsSync(`${distDir}pagefind/pagefind-entry.json`)).toBe(true);
+  });
+
+  it('renders the command palette trigger and dialog on the homepage', () => {
+    const html = readFileSync(`${distDir}index.html`, 'utf-8');
+    expect(html).toContain('id="search-trigger"');
+    expect(html).toContain('id="search-dialog"');
+  });
+
+  it('excludes a draft preview page from the index via data-pagefind-ignore on <html noindex>', () => {
+    const previewId = derivePreviewId('a-draft-fixture-post', PREVIEW_SECRET);
+    const html = readFileSync(`${distDir}preview/${previewId}/index.html`, 'utf-8');
+    expect(html).toContain('<html lang="en" data-pagefind-ignore="true">');
   });
 });

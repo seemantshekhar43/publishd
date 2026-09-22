@@ -38,6 +38,15 @@ export default tseslint.config(
     rules: { 'no-console': ['warn', { allow: ['warn', 'error', 'log'] }] },
   },
   {
+    // .cjs deliberately opts out of the repo's "type": "module" default -
+    // lighthouserc.cjs (issue #29) needs real CommonJS `module.exports`,
+    // since lhci's own config loader expects it.
+    files: ['**/*.cjs'],
+    languageOptions: {
+      globals: { module: 'writable', require: 'readonly', __dirname: 'readonly' },
+    },
+  },
+  {
     // Node scripts, not run through tsc, so `no-undef` doesn't get the
     // TS-aware pass that covers the rest of the codebase's .ts files.
     files: ['**/scripts/**/*.mjs'],

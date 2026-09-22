@@ -26,11 +26,16 @@ export interface FeedItem {
  */
 export function buildFeedItems(
   siteConfig: SiteConfig,
-  entries: Pick<ArticleFrontmatter, 'title' | 'slug' | 'date' | 'summary' | 'listed'>[],
+  entries: Pick<
+    ArticleFrontmatter,
+    'title' | 'slug' | 'date' | 'summary' | 'listed' | 'type'
+  >[],
   pathPrefix = '',
 ): FeedItem[] {
+  // `type: doc` stays out of the chronological feed, same as the homepage
+  // and /archive - see docs/PRD.md section 4.5 and issue #26.
   return entries
-    .filter((entry) => entry.listed)
+    .filter((entry) => entry.listed && entry.type !== 'doc')
     .sort((a, b) => b.date.localeCompare(a.date))
     .map((entry) => ({
       title: entry.title,

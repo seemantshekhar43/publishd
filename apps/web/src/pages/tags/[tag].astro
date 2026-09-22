@@ -1,0 +1,74 @@
+---
+// Every listed post carrying one tag, in the homepage's own visual
+// language (year-grouped, reverse-chronological, type chip, no excerpts
+// except on hover) - see docs/PRD.md section 4.6 and issue #26.
+import { getCollection, type CollectionEntry } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { formatShortDate } from '../../lib/format-date.js';
+
+export async function getStaticPaths() {
+  const listedPosts = await getCollection('posts', ({ data }) => data.listed);
+  const tags = new Set(listedPosts.flatMap((post) => post.data.tags));
+  return [...tags].map((tag) => ({ params: { tag } }));
+}
+
+const { tag } = Astro.params;
+const listedPosts = await getCollection(
+  'posts',
+  ({ data }) => data.listed && data.tags.includes(tag as string),
+);
+const sorted = listedPosts.sort((a, b) => b.data.date.localeCompare(a.data.date));
+
+const postsByYear = new Map<string, CollectionEntry<'posts'>[]>();
+for (const post of sorted) {
+  const year = post.data.date.slice(0, 4);
+  const group = postsByYear.get(year);
+  if (group) {
+    group.push(post);
+  } else {
+    postsByYear.set(year, [post]);
+  }
+}
+---
+
+<BaseLayout title={`#${tag}`} description={`Every post tagged "${tag}".`}>
+  <div class="measure mx-auto">
+    <a href="/tags" class="text-mute">← tags</a>
+    <h1 class="mt-4 font-heading text-[24px] font-semibold">#{tag}</h1>
+    {
+      [...postsByYear.entries()].map(([year, yearPosts]) => (
+        <section class="mt-10">
+          <h2 class="border-b border-border pb-2 text-[13px] font-[500] tracking-wide text-mute">
+            {year}
+          </h2>
+          <ul class="m-0 list-none p-0">
+            {yearPosts.map((post) => (
+              <li class="group border-b border-border py-3">
+                <div class="flex items-baseline justify-between gap-4">
+                  <a href={`/${post.data.slug}`} class="font-[450]">
+                    {post.data.title}
+                  </a>
+                  <span class="shrink-0 text-[13px] text-mute">
+                    {formatShortDate(post.data.date)}
+                  </span>
+                </div>
+                <div class="mt-0.5 flex items-start justify-between gap-4">
+                  {post.data.summary ? (
+                    <p class="m-0 hidden text-[14px] leading-snug text-mute group-hover:block group-focus-within:block">
+                      {post.data.summary}
+                    </p>
+                  ) : (
+                    <span />
+                  )}
+                  <span class="ml-auto shrink-0 text-[11px] tracking-wide text-mute uppercase">
+                    {post.data.type}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))
+    }
+  </div>
+</BaseLayout>

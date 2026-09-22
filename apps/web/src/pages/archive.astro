@@ -7,7 +7,12 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { formatShortDate } from '../lib/format-date.js';
 
-const listedPosts = await getCollection('posts', ({ data }) => data.listed);
+// `type: doc` stays out of the chronological feed - see docs/PRD.md
+// section 4.5 and issue #26.
+const listedPosts = await getCollection(
+  'posts',
+  ({ data }) => data.listed && data.type !== 'doc',
+);
 const posts = listedPosts.sort((a, b) => b.data.date.localeCompare(a.data.date));
 ---
 

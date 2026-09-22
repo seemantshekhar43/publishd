@@ -1,0 +1,37 @@
+---
+// `/til` - every `type: til` entry, denser and date-led rather than
+// grouped by year: one line per item, date first, no type chip (every row
+// is the same type already). See docs/PRD.md section 4.5 and issue #26.
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { formatShortDate } from '../../lib/format-date.js';
+
+const tilPosts = await getCollection(
+  'posts',
+  ({ data }) => data.listed && data.type === 'til',
+);
+const sorted = tilPosts.sort((a, b) => b.data.date.localeCompare(a.data.date));
+---
+
+<BaseLayout title="TIL" description="Today I learned - short notes, date-led.">
+  <div class="measure mx-auto">
+    <a href="/" class="text-mute">← home</a>
+    <h1 class="mt-4 font-heading text-[24px] font-semibold">TIL</h1>
+    {
+      sorted.length === 0 ? (
+        <p class="mt-12 text-mute">Nothing yet.</p>
+      ) : (
+        <ul class="m-0 mt-6 list-none p-0">
+          {sorted.map((post) => (
+            <li class="flex items-baseline gap-4 border-b border-border py-1.5">
+              <span class="w-[64px] shrink-0 text-[13px] text-mute">
+                {formatShortDate(post.data.date)}
+              </span>
+              <a href={`/${post.data.slug}`}>{post.data.title}</a>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+</BaseLayout>

@@ -9,6 +9,14 @@ dist/
 .output/
 coverage/
 
+# Playwright run artifacts - visual/*-snapshots/ (committed baselines) are
+# the exception, kept out of this glob by matching only the report/results
+# dirs by name.
+test-results/
+playwright-report/
+blob-report/
+.lighthouseci/
+
 # local review artifacts (inkloop sessions are local planning scratch)
 .inkloop/
 
@@ -21,6 +29,7 @@ apps/web/src/content/posts/*
 apps/web/src/content/pages/*
 !apps/web/src/content/pages/.gitkeep
 apps/web/src/content/.lastmod.json
+apps/web/src/content/redirects.json
 
 # env + secrets
 .env

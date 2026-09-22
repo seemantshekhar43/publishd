@@ -20,6 +20,7 @@
   "scripts": {
     "build": "tsc -b && pnpm --filter @publishd/web build",
     "check-links": "pnpm --filter @publishd/web check-links",
+    "check-tags": "pnpm --filter @publishd/web check-tags",
     "clean": "tsc -b --clean && rm -rf dist apps/*/dist packages/*/dist apps/web/.vercel",
     "dev": "pnpm -r --parallel --if-present dev",
     "format": "prettier --write .",
@@ -29,6 +30,8 @@
     "test:watch": "vitest",
     "pretest:e2e": "pnpm --filter publishd-schema build && tsc -b tsconfig.site-config.json && pnpm --filter publishd build",
     "test:e2e": "vitest run --config e2e/vitest.config.ts",
+    "test:visual": "node scripts/run-visual-tests.mjs",
+    "test:visual:update": "node scripts/run-visual-tests.mjs --update-snapshots",
     "typecheck": "tsc -b --pretty && pnpm --filter @publishd/web typecheck",
     "prepare": "husky"
   },
@@ -42,10 +45,13 @@
     ]
   },
   "devDependencies": {
-    "@octokit/rest": "22.0.1",
+    "@axe-core/playwright": "4.13.0",
     "@commitlint/cli": "^21.2.2",
     "@commitlint/config-conventional": "^21.2.2",
     "@eslint/js": "^10.0.1",
+    "@lhci/cli": "0.15.1",
+    "@octokit/rest": "22.0.1",
+    "@playwright/test": "1.62.1",
     "@types/node": "^26.6.2",
     "@vitest/coverage-v8": "^5.0.1",
     "conventional-changelog-conventionalcommits": "^10.4.0",
@@ -54,6 +60,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.5.1",
     "prettier": "^3.9.8",
+    "serve": "14.2.6",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.70.0",
     "vitest": "^5.0.1"

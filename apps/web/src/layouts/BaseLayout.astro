@@ -6,6 +6,7 @@
 import { ClientRouter } from 'astro:transitions';
 import '../styles/theme.css';
 import ThemeToggle from '../components/ThemeToggle.astro';
+import CommandPalette from '../components/CommandPalette.astro';
 import { getSiteConfig } from '../../../../site.config.js';
 import { resolveCanonicalUrl, absoluteUrl } from '../lib/seo.js';
 
@@ -39,7 +40,7 @@ const {
 const jsonLdBlocks = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
 ---
 
-<html lang="en">
+<html lang="en" data-pagefind-ignore={noindex ? 'true' : undefined}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -119,10 +120,14 @@ const jsonLdBlocks = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
     </script>
   </head>
   <body>
-    <header class="measure mx-auto flex items-center justify-end px-4 py-4">
+    <header
+      data-pagefind-ignore
+      class="measure mx-auto flex items-center justify-end gap-1 px-4 py-4"
+    >
+      <CommandPalette />
       <ThemeToggle />
     </header>
-    <main class="mx-auto px-4 pb-16">
+    <main data-pagefind-body class="mx-auto px-4 pb-16">
       <slot />
     </main>
   </body>
