@@ -16,7 +16,15 @@ const minDepth = Math.min(...headings.map((h) => h.depth));
 const topLevel = headings.filter((h) => h.depth === minDepth);
 ---
 
-<div class="absolute inset-y-0 left-full ml-12 hidden w-[200px] min-[1200px]:block">
+{
+  /* The rail needs 15.5rem (ml-12 gap + its own 200px width) clear past the
+     article's right edge. At the 46rem measure (see issue #67), the
+     centred article's own margin only guarantees that much room once the
+     viewport is at least 46rem + 2*15.5rem = 77rem (1232px) wide - below
+     that the rail would overflow past the viewport edge. 80rem (1280px)
+     keeps a small buffer past that minimum. */
+}
+<div class="absolute inset-y-0 left-full ml-12 hidden w-[200px] min-[1280px]:block">
   <nav
     aria-label="Table of contents"
     class="toc sticky top-8 border-l border-border pl-4 text-[13px] leading-relaxed"

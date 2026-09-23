@@ -463,7 +463,7 @@ Two neutrals plus one accent. No secondary accent, no semantic colour scale beyo
 
 All-sans gives up the serif signal, so the design earns its character elsewhere: the warm cream ground, the burnt-orange accent, generous spacing, and layout restraint. Body drops from 19px to 17px because Inter runs optically larger than a serif at the same size.
 
-Measure capped at **40rem (640px)** - one column, centred, no sidebar. `ch` is the width of "0", not the average glyph, so a `ch`-based measure reads wider than intended. 8px spacing base with generous vertical rhythm; paragraph spacing about 1x line-height.
+Measure capped per docs/design.md section 4 - one column, centred, no sidebar. `ch` is the width of "0", not the average glyph, so a `ch`-based measure reads wider than intended. 8px spacing base with generous vertical rhythm; paragraph spacing about 1x line-height.
 
 ### 9.3 Pages
 

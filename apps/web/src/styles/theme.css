@@ -139,14 +139,16 @@
   }
 }
 
-/* The single-column reading measure: 640px (40rem), no sidebar. See
-   docs/design.md section 4. `ch` is the width of "0", not the average
-   glyph - at 17px Inter that made 68ch render as ~86 characters/line, well
-   past the 640px cluster the reference sites (paco.me, rauno.me,
-   overreacted.io, et al.) measure at. Code, tables, and diagrams may break
+/* The single-column reading measure: 736px (46rem), no sidebar. See
+   docs/design.md section 4 and issue #67. `ch` is the width of "0", not the
+   average glyph - at 17px Inter that made 68ch render as ~86 characters/line,
+   well past the 640px cluster the reference sites (paco.me, rauno.me,
+   overreacted.io, et al.) measure at. 46rem lands at ~86 chars/line -
+   wider than that cluster's median for more breathing room, while still
+   short of the 68ch column it replaced. Code, tables, and diagrams may break
    out to 76ch. */
 .measure {
-  max-width: 40rem;
+  max-width: 46rem;
 }
 
 /* Half of that measure, as an absolute length - the sidenote geometry below
@@ -159,7 +161,7 @@
 }
 
 body {
-  --half-measure: 20rem;
+  --half-measure: 23rem;
 }
 
 .measure-wide {
@@ -185,7 +187,7 @@ body {
   --tw-prose-td-borders: var(--border);
   font-size: 17px;
   line-height: 1.68;
-  max-width: 40rem;
+  max-width: 46rem;
 }
 
 .prose :where(p):not(:where([class~='not-prose'] *)) {
