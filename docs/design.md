@@ -89,7 +89,7 @@ Give every face a real fallback stack. Never leave text on the browser serif def
 
 ## 4. Layout
 
-- **One column, centred, no sidebar.** Measure capped at **40rem (640px)**. `ch` is the width of "0", not the average glyph - at 17px Inter, 68ch rendered as ~86 characters/line, well past what the measured reference sites (paco.me, rauno.me, overreacted.io, et al.) cluster at.
+- **One column, centred, no sidebar.** Measure capped at **46rem (736px, ~86 chars/line at 17px Inter)** - see issue #67. `ch` is the width of "0", not the average glyph - at 17px Inter, 68ch rendered as ~86 characters/line, well past what the measured reference sites (paco.me, rauno.me, overreacted.io, et al.) cluster at; 46rem gives a wider column than that cluster's median while staying short of the 68ch column it replaced. On article pages with a TOC rail (past 6 headings), the rail becomes visible at 1280px and up - the minimum width at which it clears the centred column without causing horizontal overflow.
 - Code blocks, tables, and diagrams may break out to 76ch, each in its own `overflow-x: auto` container.
 - 8px spacing base. Paragraph spacing is about 1x line-height (~1em) - the reference sites' field median is 18-28px; 1.5x line-height measured at 43px, well past that.
 - One breakpoint at 720px collapsing multi-column layouts to a single column.
