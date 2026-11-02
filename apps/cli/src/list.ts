@@ -2,18 +2,24 @@
  * `publishd list [--status draft]` - see docs/PRD.md section 8.4 and issue #22.
  */
 
+import { derivePreviewId } from 'publishd-schema';
+import { resolveClonePath, type Profile } from './config.js';
+import { listArticles } from './content-repo.js';
 import type { Logger } from './publish.js';
 
 export interface ListOptions {
   status?: string | undefined;
 }
 
+export interface ListGitOps {
+  ensureClone(remote: string, branch: string, clonePath: string): Promise<void>;
+}
+
 export interface ListDeps {
-  fetchImpl: typeof fetch;
-  endpoint: string;
-  token: string;
-  protectionBypass?: string | undefined;
+  profile: Profile;
+  profileName: string;
   log: Logger;
+  git: ListGitOps;
 }
 
 interface ListedArticle {
@@ -24,48 +30,41 @@ interface ListedArticle {
   url?: string;
 }
 
-interface ListResponseBody {
-  articles: ListedArticle[];
-}
-
-interface ErrorBody {
-  error: string;
+/** Mirrors the old `/api/list` route's `resolveListedUrl`. */
+function resolveListedUrl(
+  article: Pick<ListedArticle, 'slug' | 'status'>,
+  profile: Profile,
+): string | undefined {
+  if (article.status === 'archived') {
+    return undefined;
+  }
+  if (article.status === 'draft') {
+    return profile.previewSecret
+      ? `${profile.siteUrl}/preview/${derivePreviewId(article.slug, profile.previewSecret)}`
+      : undefined;
+  }
+  return `${profile.siteUrl}/${article.slug}`;
 }
 
 /** Returns the process exit code. */
 export async function runList(options: ListOptions, deps: ListDeps): Promise<number> {
-  const url = new URL(`${deps.endpoint}/api/list`);
-  if (options.status !== undefined) {
-    url.searchParams.set('status', options.status);
-  }
+  const clonePath = resolveClonePath(deps.profile, deps.profileName);
+  await deps.git.ensureClone(deps.profile.contentRepo, deps.profile.branch, clonePath);
 
-  const response = await deps.fetchImpl(url, {
-    headers: {
-      authorization: `Bearer ${deps.token}`,
-      ...(deps.protectionBypass
-        ? { 'x-vercel-protection-bypass': deps.protectionBypass }
-        : {}),
-    },
-  });
+  const articles = await listArticles(clonePath);
+  const filtered = options.status
+    ? articles.filter((article) => article.status === options.status)
+    : articles;
 
-  if (!response.ok) {
-    const body = (await response.json().catch(() => ({
-      error: response.statusText,
-    }))) as ErrorBody;
-    deps.log.error(`list failed (${response.status}): ${body.error}`);
-    return 1;
-  }
-
-  const { articles } = (await response.json()) as ListResponseBody;
-  if (articles.length === 0) {
+  if (filtered.length === 0) {
     deps.log.info('Nothing published yet.');
     return 0;
   }
 
-  const statusWidth = Math.max(...articles.map((article) => article.status.length));
-  for (const article of articles) {
+  const statusWidth = Math.max(...filtered.map((article) => article.status.length));
+  for (const article of filtered) {
     const status = article.status.padEnd(statusWidth);
-    const location = article.url ?? '(no url)';
+    const location = resolveListedUrl(article, deps.profile) ?? '(no url)';
     deps.log.info(`${status}  ${article.date}  ${article.slug}  ${location}`);
   }
   return 0;

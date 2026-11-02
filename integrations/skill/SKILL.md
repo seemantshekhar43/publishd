@@ -56,13 +56,13 @@ Read [`docs/design.md`](https://raw.githubusercontent.com/seemantshekhar43/publi
 - **Draft-first, always.** Never run `--status published` in the same turn that created the draft. Making something public is the user's decision, taken with the preview in front of them.
 - **Use `--dry-run` when unsure.** It prints the resolved frontmatter and, if the file embeds any images, the asset(s) it would upload - without sending anything.
 - If validation fails, the error names the field and the expected shape. Fix the file, do not work around the schema.
-- Never pass a token on the command line. The CLI reads `~/.config/publishd/config.toml`, or `PUBLISHD_TOKEN` from the environment.
+- Never pass credentials on the command line. The CLI reads `~/.config/publishd/config.toml`, or `PUBLISHD_CONTENT_REPO`/`PUBLISHD_SITE_URL` from the environment.
 
 ## Configuration
 
 ```bash
 npx -y publishd init      # write the config file interactively
-npx -y publishd doctor    # check config, token, and endpoint reachability
+npx -y publishd doctor    # check config, content repo, and site reachability
 ```
 
 Target a different deployment with `--profile <name>`.

@@ -4,10 +4,10 @@
  * A preview id is an HMAC of the slug, not a random value stored anywhere -
  * there is no database (docs/PRD.md section 4.1's "Store: Git"), so
  * stability across republishes has to come from being a pure function of
- * the slug and a server-only secret rather than from looked-up state. The
- * HMAC is what makes it unguessable: without the secret, the slug alone
- * (which an author's own filenames, editor tabs, or git history might leak)
- * gives an attacker nothing.
+ * the slug and a shared secret rather than from looked-up state. The HMAC is
+ * what makes it unguessable: without the secret, the slug alone (which an
+ * author's own filenames, editor tabs, or git history might leak) gives an
+ * attacker nothing.
  */
 
 import { createHmac } from 'node:crypto';

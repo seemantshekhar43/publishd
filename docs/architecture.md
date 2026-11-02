@@ -6,7 +6,7 @@ How `publishd` is put together, and why. For the product reasoning behind these 
 
 ## 1. The shape of the system
 
-One sentence: **a small serverless endpoint validates markdown and commits it to a git repo, which triggers a static site build.**
+One sentence: **the CLI validates markdown locally and pushes it to a git repo, which triggers a static site build.**
 
 Everything else is detail. There is no database, no running server to maintain, no queue, and no state that is not either in git or regenerated at build time.
 
@@ -15,14 +15,13 @@ Everything else is detail. There is no database, no running server to maintain, 
   (shell cmd)       (SKILL.md)          (publishd)
       |                  |                  |
       +---------+--------+------------------+
-                |  POST /api/ingest   Authorization: Bearer <token>
+                |  all three shell out to the same `publishd` CLI
                 v
       +---------------------------+
-      |  Ingest function (Vercel) |  1. auth  -> named client
-      |                           |  2. validate against zod schema
-      |                           |  3. normalise Obsidian syntax
-      |                           |  4. resolve slug, detect create vs update
-      +-------------+-------------+  5. commit via GitHub API
+      |  publishd CLI             |  1. validate against zod schema
+      |                           |  2. normalise Obsidian syntax (local clone)
+      |                           |  3. resolve slug, detect create vs update
+      +-------------+-------------+  4. write + `git commit` + `git push`
                     v
       +---------------------------+
       | GitHub: content repo      |  markdown + assets, full history
@@ -46,7 +45,7 @@ Everything else is detail. There is no database, no running server to maintain, 
 
 ### Why the homelab is not in the path
 
-Publishing must work on a plane, when home internet is down, and when the homelab is mid-upgrade. Putting the ingest endpoint behind a Cloudflare Tunnel would make publishing a blog post depend on the author's house being up. The homelab gets the two jobs where it genuinely wins - analytics the author owns, and an offline backup that is not another GitHub clone.
+Publishing must work on a plane, when home internet is down, and when the homelab is mid-upgrade. Routing a publish through anything hosted on the homelab (e.g. behind a Cloudflare Tunnel) would make publishing a blog post depend on the author's house being up. The homelab gets the two jobs where it genuinely wins - analytics the author owns, and an offline backup that is not another GitHub clone.
 
 ---
 
@@ -56,7 +55,7 @@ Two repositories, and the split is load-bearing.
 
 | Repo | Visibility | Holds |
 | --- | --- | --- |
-| `seemantshekhar43/publishd` | **Public**, MIT | All code: site, CLI, ingest function, schema |
+| `seemantshekhar43/publishd` | **Public**, MIT | All code: site, CLI, schema |
 | `seemantshekhar43/shekse-publish-content` | **Private** | Markdown and assets only. Never code. |
 
 Reasons they are separate:
@@ -74,14 +73,17 @@ A third repo, `seemantshekhar43/publishd-content-template`, is a GitHub *templat
 ```
 publishd/
   apps/
-    web/                 Astro site + /api/ingest route
+    web/                 Astro site (no write path - read-only at build time)
       src/content/       content collection, synced from the content repo at build time
       src/pages/
       src/components/
       src/styles/
-    cli/                 the publishd CLI, published to npm
+    cli/                 the publishd CLI, published to npm - writes directly to a local
+                         clone of the content repo and pushes
   packages/
-    schema/              zod frontmatter schema + Obsidian normalisers
+    schema/              zod frontmatter schema, content-repo path helpers, Obsidian
+                         normalisers, and preview-id derivation - shared by the CLI and
+                         the site build
   integrations/
     obsidian/            shell-command integration (v1); a real plugin is deferred to M5
     skill/               SKILL.md - agent-agnostic
@@ -91,12 +93,11 @@ publishd/
 
 ### `packages/schema` is the keystone
 
-It is imported by three consumers, and that is the entire point:
+It is imported by two consumers, and that is the entire point:
 
 | Consumer | When it validates | What it catches |
 | --- | --- | --- |
-| `apps/cli` | Before sending | Bad frontmatter on the author's laptop, before a network call |
-| `apps/web` ingest route | On receipt | A malformed request from any client, including a future one |
+| `apps/cli` | Before writing to the content repo | Bad frontmatter on the author's laptop, before anything is committed |
 | `apps/web` build | At build time | Drift between what is in the content repo and what the site expects |
 
 It is also published to npm as `publishd-schema` so the **content repo's** CI can validate a push without vendoring the whole site.
@@ -105,57 +106,29 @@ It is also published to npm as `publishd-schema` so the **content repo's** CI ca
 
 ---
 
-## 4. The ingest endpoint
+## 4. The publish pipeline
 
-`POST /api/ingest`, a Vercel serverless function on the Node runtime (it needs Node for the GitHub SDK).
+There is no ingest endpoint. Earlier versions of this system posted to a Vercel serverless function (`POST /api/ingest`) that validated the request and committed to the content repo on the CLI's behalf, authenticated with per-client bearer tokens. That hop only bought multi-tenant auth and rate limiting - value that matters when multiple untrusted clients publish through one server, and doesn't apply to a single-author deployment where the author already has git write access to their own content repo. So the CLI now writes and pushes directly.
 
-### Request
+### Pipeline (`apps/cli/src/publish.ts`)
 
-```http
-POST /api/ingest
-Authorization: Bearer <token>
-Content-Type: application/json
+1. **Validate** against the zod schema (`packages/schema`), locally, before anything is cloned or touched. Reject with a readable error naming the offending field. Never partially apply.
+2. **Ensure the local clone** of the content repo is present and up to date (`apps/cli/src/git.ts`'s `ensureClone`) - clones it on first use, otherwise fetches and hard-resets to `origin/<branch>`. This clone is CLI-managed state the author never edits by hand.
+3. **Normalise** Obsidian syntax (`publishd-schema`'s `normaliseObsidianMarkdown`) - see [`content-schema.md`](content-schema.md) for the exact rules. The published-slug lookup for wikilinks is now a filesystem walk of the local clone (`apps/cli/src/content-repo.ts`'s `listPublishedSlugs`), not a GitHub API call.
+4. **Resolve the slug** and determine create vs update by checking whether the article file already exists in the clone. The slug is the primary key, so republishing the same slug is an update, producing a `publish: update <slug>` commit.
+5. **Write** the article/page and any assets into the clone (`apps/cli/src/content-repo.ts`'s `commitArticle`/`commitPage`), then `git add -A && git commit && git push` (`git.ts`'s `commitAndPush`), one commit per publish, including any assets.
 
-{
-  "kind": "article",          // "article" | "page"
-  "frontmatter": { ... },     // parsed and validated client-side too
-  "body": "# ...",            // markdown, or raw HTML when kind is "page"
-  "assets": [                 // optional
-    { "path": "topology.png", "contentType": "image/png", "data": "<base64>" }
-  ]
-}
-```
-
-### Pipeline
-
-1. **Authenticate.** Constant-time compare against hashed tokens. Resolve to a named client (`cli`, `obsidian`, `agent`) and log it. Rate limit 30 publishes/hour/token.
-2. **Validate** against the zod schema. Reject with a readable error naming the offending field. Never partially apply.
-3. **Normalise** Obsidian syntax - see [`content-schema.md`](content-schema.md) for the exact rules.
-4. **Resolve the slug** and determine create vs update. The slug is the primary key, so republishing the same slug is an update, producing a `publish: update <slug>` commit.
-5. **Commit** via the GitHub API, one commit per publish, including any assets.
-
-The function returns the final URL immediately. It does not wait for the build. The CLI polls the deploy and prints `live` when it completes. If the poll times out - e.g. several publishes queue back-to-back builds on Vercel - the CLI warns instead of failing, since the commit already succeeded; only the "wait and confirm live" step timed out.
-
-### Latency budget
-
-| Stage | Target |
-| --- | --- |
-| Ingest (auth, validate, normalise) | 300ms |
-| GitHub commit | 500ms |
-| Vercel build | 20-40s |
-
-The 60-second end-to-end figure in the PRD is the metric that decides whether this gets used. Treat a regression here as a bug.
+The push is the actual publish - it already succeeded by the time it returns. The CLI does not wait for the build; it polls the deploy and prints `live` when it completes. If the poll times out - e.g. several publishes queue back-to-back builds on Vercel - the CLI warns instead of failing, since the commit already succeeded; only the "wait and confirm live" step timed out.
 
 ### Failure modes
 
 | Failure | Behaviour |
 | --- | --- |
-| Invalid token | 401, logged, no commit. Rate limiter still counts the attempt. |
-| Schema violation | 422 with the field path and the expected shape. No commit. |
-| GitHub API down | 502. The CLI retries with backoff. Nothing is half-written, because it is one commit. |
-| Content CI fails after commit | The deploy hook never fires. The site keeps serving the previous build. |
+| Schema violation | CLI exits 1 with the field path and the expected shape. Nothing cloned, nothing written. |
+| git remote unreachable / credentials rejected | `ensureClone`/`commitAndPush` throws; the CLI exits non-zero. Nothing is half-written, because the commit is local before the push. |
+| Content CI fails after push | The deploy hook never fires. The site keeps serving the previous build. |
 | Build fails | Vercel keeps the last good deployment live. ntfy alert fires. |
-| Poll for "live" times out | Not a failure: the commit already succeeded. The CLI warns and exits 0. |
+| Poll for "live" times out | Not a failure: the push already succeeded. The CLI warns and exits 0. |
 
 The design goal is that **no failure produces a broken published site** - the worst case is that a publish does not appear.
 
@@ -163,18 +136,11 @@ The design goal is that **no failure produces a broken published site** - the wo
 
 ## 5. Auth
 
-Bearer tokens, one per client, stored as hashes in a single Vercel environment variable:
+No bearer tokens, no server-side auth layer. Obsidian, the agent skill, and the terminal are all just invocations of the same `publishd` CLI running as the author, on the author's own machine - there is no separate "client" to authenticate, because there is exactly one author and no server in between.
 
-```
-PUBLISHD_TOKENS='{"cli":"sha256:...","obsidian":"sha256:...","agent":"sha256:..."}'
-```
+The trust boundary is ordinary git push access to the content repo: whatever credential (SSH key, PAT) the CLI's git invocations use is what's actually trusted. Everything downstream - including raw HTML in a `page` - is trusted because it got past that, not because it got past a token check in a serverless function.
 
-- Constant-time comparison. Never `===` on the raw value.
-- Per-client tokens so a leak is revoked without rotating everything.
-- The client name is logged on every publish, which is how you find out *which* integration is misbehaving.
-- No OAuth, no user table, no session. There is exactly one author per deployment.
-
-The token is the trust boundary for the whole system. Everything downstream - including raw HTML in a `page` - is trusted because it got past the token.
+This only holds because the deployment is single-author. A deployment that needs multiple untrusted publishers again would need to reintroduce a server-side gate (per-client credentials, rate limiting) in front of the content repo - see the now-removed `/api/ingest` in git history for the shape that took.
 
 ---
 
@@ -199,7 +165,7 @@ A `page` ships arbitrary JavaScript on the site's own origin. This is safe **onl
 
 > **If any deployment ever adds authentication, pages must move to a separate origin first.**
 
-Do not write a sanitiser. Sanitising HTML well enough to be a real security boundary is a losing game, and it would break the entire point of serving an artifact verbatim. The ingest token is the boundary.
+Do not write a sanitiser. Sanitising HTML well enough to be a real security boundary is a losing game, and it would break the entire point of serving an artifact verbatim. Git push access to the content repo is the boundary.
 
 ---
 
@@ -241,15 +207,15 @@ Secrets never live here. They are environment variables:
 
 | Variable | Where | Purpose |
 | --- | --- | --- |
-| `PUBLISHD_TOKENS` | Vercel | Hashed ingest tokens |
-| `GITHUB_TOKEN` | Vercel | Commit access to the content repo |
-| `PUBLISHD_PREVIEW_SECRET` | Vercel | HMAC key deriving each draft's stable `/preview/<uuid>` id - see docs/content-schema.md section 4. Needed by both the ingest endpoint and the site build, so it must be set for build environments too, not only serverless functions. |
-| `PUBLISHD_CONTENT_BRANCH` | Vercel | Overrides `content.branch` - lets a staging deployment target a different content branch than production, without touching `site.config.ts` |
-| `PUBLISHD_ENDPOINT` | Client | Overrides the configured endpoint |
-| `PUBLISHD_TOKEN` | Client | The client's bearer token |
-| `PUBLISHD_PROTECTION_BYPASS` | Client | Vercel's "Protection Bypass for Automation" secret - only needed against a deployment with Deployment Protection enabled |
+| `GITHUB_TOKEN` | Vercel | Read-only access for `apps/web/scripts/sync-content.mjs` to pull content into the build. No longer needs write scope - the CLI pushes to the content repo directly over git, not through this token. |
+| `PUBLISHD_PREVIEW_SECRET` | Vercel (build) and the author's `publishd` config | HMAC key deriving each draft's stable `/preview/<uuid>` id - see docs/content-schema.md section 4. The CLI needs its own copy (in `~/.config/publishd/config.toml` or `PUBLISHD_PREVIEW_SECRET` below) to print the same link the site build later verifies. |
+| `PUBLISHD_CONTENT_REPO` | Client | Overrides the configured profile's content repo git remote |
+| `PUBLISHD_SITE_URL` | Client | Overrides the configured profile's site URL |
+| `PUBLISHD_BRANCH` | Client | Overrides the configured profile's branch |
+| `PUBLISHD_PREVIEW_SECRET` | Client | Overrides the configured profile's preview secret |
+| `PUBLISHD_CLONE_PATH` | Client | Overrides where the content repo is cloned locally |
 
-The client reads `~/.config/publishd/config.toml` for named profiles, so the same CLI targets local, staging, and production without a code change.
+The client reads `~/.config/publishd/config.toml` for named profiles, so the same CLI targets local, staging, and production without a code change. See `apps/cli/src/config.ts`.
 
 ---
 
@@ -259,11 +225,12 @@ Where to add things, so they land in the right layer:
 
 | You want to | Change |
 | --- | --- |
-| Add a frontmatter field | `packages/schema` only. The three consumers pick it up. |
-| Support a new client | Nothing. Add a token to `PUBLISHD_TOKENS`. The HTTP contract is the integration surface. |
+| Add a frontmatter field | `packages/schema` only. Both consumers pick it up. |
+| Support a new client | Nothing. Any script or integration that can shell out to `publishd` is a new client - there is no separate contract to extend. |
 | Change the look | `site.config.ts` theme presets, or `docs/design.md` tokens. Not component CSS. |
 | Add a route | `apps/web/src/pages`, and add the slug to the reserved list in the schema. |
-| Move assets off git | Change `commitArticle()`'s blob writes in `apps/web/src/lib/content-repo.ts`. One function, by design. |
+| Move assets off git | Change `commitArticle()`'s writes in `apps/cli/src/content-repo.ts`. One function, by design. |
+| Support multiple untrusted publishers again | Reintroduce a server-side gate in front of the content repo (auth, rate limiting) - see section 5. Not a small change. |
 
 ---
 

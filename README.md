@@ -26,15 +26,15 @@ Not a CMS. There is no admin UI and no database. Your editor stays whatever it a
 ```
 Obsidian / agent / terminal
         |
-        |  POST /api/ingest   (bearer token)
+        |  publishd <file>
         v
-  ingest function  ->  commit to a private content repo  ->  static site build
-                                                                     |
-                                                                     v
-                                                              your published URL
+  validate locally  ->  write + push to a private content repo  ->  static site build
+                                                                            |
+                                                                            v
+                                                                     your published URL
 ```
 
-A small serverless endpoint validates your markdown and commits it to a git repo. The commit triggers a static site build. That is the whole system.
+The CLI validates your markdown locally, writes it into a local clone of your content repo, and pushes. The push triggers a static site build. That is the whole system - no ingest endpoint, no bearer token to manage.
 
 - **Git is the database.** Version history is free, rollback is `git revert`, and your Obsidian vault can be the repo.
 - **Static output.** No server to patch, no container to restart.
@@ -45,7 +45,7 @@ A small serverless endpoint validates your markdown and commits it to a git repo
 
 An HTML `page` (`--kind page`) is stored and served **verbatim** at `/p/<slug>` - the pipeline reads its `<meta name="shekse:*">` tags for metadata and otherwise never touches it. That means a page's own JavaScript runs on `publish.shekse.com`'s origin, same-origin with every other page on the site.
 
-This is safe **only because the site has no cookies, no login, and no authenticated surface to steal from.** There is nothing for a page's script to exfiltrate. **If a deployment ever adds authentication, pages must move to a separate origin first** - a sandboxed `<iframe>` or a dedicated subdomain, not a runtime sanitiser. Sanitising HTML well enough to be a real security boundary is a losing game and would defeat the point of serving an artifact verbatim; the ingest token, not the document's contents, is what's actually trusted here.
+This is safe **only because the site has no cookies, no login, and no authenticated surface to steal from.** There is nothing for a page's script to exfiltrate. **If a deployment ever adds authentication, pages must move to a separate origin first** - a sandboxed `<iframe>` or a dedicated subdomain, not a runtime sanitiser. Sanitising HTML well enough to be a real security boundary is a losing game and would defeat the point of serving an artifact verbatim; your git push access to the content repo, not the document's contents, is what's actually trusted here.
 
 ## Integrations
 

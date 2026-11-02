@@ -1,15 +1,33 @@
-import { describe, expect, it, vi, type Mock } from 'vitest';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { derivePreviewId } from 'publishd-schema';
+import type { Profile } from './config.js';
 import { runPublish, type PublishDeps, type PublishOptions } from './publish.js';
+
+const PREVIEW_SECRET = 'preview-secret';
 
 const articleMarkdown = `---
 title: Hello world
 date: 2026-09-20
+status: published
 ---
 
 # Hello
 
 Body text.
 `;
+
+let clonePath: string;
+
+beforeEach(async () => {
+  clonePath = await mkdtemp(join(tmpdir(), 'publishd-publish-'));
+});
+
+afterEach(async () => {
+  await rm(clonePath, { recursive: true, force: true });
+});
 
 function buildOptions(overrides: Partial<PublishOptions> = {}): PublishOptions {
   return {
@@ -21,39 +39,40 @@ function buildOptions(overrides: Partial<PublishOptions> = {}): PublishOptions {
   };
 }
 
+type ProfileOverrides = Partial<Omit<Profile, 'previewSecret'>> & {
+  previewSecret?: string | undefined;
+};
+
+function buildProfile(overrides: ProfileOverrides = {}): Profile {
+  const previewSecret =
+    'previewSecret' in overrides ? overrides.previewSecret : PREVIEW_SECRET;
+  const { previewSecret: _omit, ...rest } = overrides;
+  return {
+    contentRepo: 'git@example.test:you/content.git',
+    branch: 'main',
+    siteUrl: 'https://publish.example.test',
+    clonePath,
+    ...(previewSecret !== undefined ? { previewSecret } : {}),
+    ...rest,
+  };
+}
+
 function buildDeps(overrides: Partial<PublishDeps> = {}) {
   return {
     readStdin: vi.fn().mockResolvedValue(articleMarkdown),
     readFileContent: vi.fn().mockResolvedValue(articleMarkdown),
-    // /api/list (the best-effort slug-change check) and /api/ingest get
-    // distinct responses, keyed by URL - a single shared Response instance
-    // can't be JSON-parsed twice. Defaults /api/list to "nothing on
-    // record", so the slug-change warning stays silent unless a test opts
-    // into it.
-    fetchImpl: vi.fn().mockImplementation((url: string) => {
-      if (url.endsWith('/api/list')) {
-        return Promise.resolve(
-          new Response(JSON.stringify({ articles: [] }), { status: 200 }),
-        );
-      }
-      return Promise.resolve(
-        new Response(
-          JSON.stringify({
-            url: 'https://publish.example.test/hello-world',
-            slug: 'hello-world',
-            operation: 'create',
-          }),
-          { status: 200 },
-        ),
-      );
-    }),
-    endpoint: 'https://publish.example.test',
-    token: 'super-secret-token',
+    fetchImpl: vi.fn(),
+    profile: buildProfile(),
+    profileName: 'default',
     pollUntilLive: vi.fn().mockResolvedValue(undefined),
     openUrl: vi.fn(),
     assetFs: {
       readBytes: vi.fn().mockRejectedValue(new Error('no assets in this fixture')),
       exists: vi.fn().mockResolvedValue(false),
+    },
+    git: {
+      ensureClone: vi.fn().mockResolvedValue(undefined),
+      commitAndPush: vi.fn().mockResolvedValue('abc1234'),
     },
     ...overrides,
     // After the spread, so `deps.log.info.mock` stays typed even though
@@ -66,33 +85,58 @@ function buildDeps(overrides: Partial<PublishDeps> = {}) {
   };
 }
 
-function ingestCall(fetchImpl: Mock): [string, RequestInit] {
-  const call = fetchImpl.mock.calls.find(
-    ([url]) => typeof url === 'string' && url.endsWith('/api/ingest'),
-  );
-  return call as [string, RequestInit];
-}
-
-async function sentBody(fetchImpl: Mock): Promise<Record<string, unknown>> {
-  const [, requestInit] = ingestCall(fetchImpl);
-  return JSON.parse(requestInit.body as string) as Record<string, unknown>;
-}
-
 describe('runPublish', () => {
-  it('publishes a valid article and prints the returned URL, then "live"', async () => {
+  it('publishes a valid article, writes it into the clone, pushes, and prints the URL then "live"', async () => {
     const deps = buildDeps();
 
     const exitCode = await runPublish(buildOptions(), deps);
 
     expect(exitCode).toBe(0);
-    expect(deps.fetchImpl).toHaveBeenCalledWith(
-      'https://publish.example.test/api/ingest',
-      expect.objectContaining({ method: 'POST' }),
+    expect(deps.git.ensureClone).toHaveBeenCalledWith(
+      deps.profile.contentRepo,
+      deps.profile.branch,
+      clonePath,
+    );
+    const written = await readFile(join(clonePath, 'posts/2026/hello-world.md'), 'utf-8');
+    expect(written).toContain('title: Hello world');
+    expect(written).toContain('Body text.');
+    expect(deps.git.commitAndPush).toHaveBeenCalledWith(
+      clonePath,
+      'publish: create hello-world',
     );
     expect(deps.log.info).toHaveBeenCalledWith(
       'https://publish.example.test/hello-world',
     );
     expect(deps.log.info).toHaveBeenCalledWith('live');
+  });
+
+  it('mints a /preview/<uuid> link for a draft, derived from the configured previewSecret', async () => {
+    const deps = buildDeps({
+      readFileContent: vi
+        .fn()
+        .mockResolvedValue(articleMarkdown.replace('status: published', 'status: draft')),
+    });
+
+    const exitCode = await runPublish(buildOptions(), deps);
+
+    expect(exitCode).toBe(0);
+    const expectedUrl = `https://publish.example.test/preview/${derivePreviewId('hello-world', PREVIEW_SECRET)}`;
+    expect(deps.log.info).toHaveBeenCalledWith(expectedUrl);
+  });
+
+  it('fails, before pushing anything, when a draft has no previewSecret configured', async () => {
+    const deps = buildDeps({
+      profile: buildProfile({ previewSecret: undefined }),
+      readFileContent: vi
+        .fn()
+        .mockResolvedValue(articleMarkdown.replace('status: published', 'status: draft')),
+    });
+
+    const exitCode = await runPublish(buildOptions(), deps);
+
+    expect(exitCode).toBe(1);
+    expect(deps.git.commitAndPush).not.toHaveBeenCalled();
+    expect(deps.log.error).toHaveBeenCalledWith(expect.stringContaining('previewSecret'));
   });
 
   it('does not fail the publish when the poll for "live" times out - the commit already succeeded', async () => {
@@ -115,7 +159,7 @@ describe('runPublish', () => {
     expect(deps.log.error).not.toHaveBeenCalled();
   });
 
-  it('never echoes the token anywhere', async () => {
+  it('never echoes the preview secret anywhere', async () => {
     const deps = buildDeps();
 
     await runPublish(buildOptions(), deps);
@@ -123,7 +167,7 @@ describe('runPublish', () => {
     const allLoggedText = [...deps.log.info.mock.calls, ...deps.log.error.mock.calls]
       .flat()
       .join('\n');
-    expect(allLoggedText).not.toContain('super-secret-token');
+    expect(allLoggedText).not.toContain(PREVIEW_SECRET);
   });
 
   it('reads from stdin when the path is "-"', async () => {
@@ -135,7 +179,7 @@ describe('runPublish', () => {
     expect(deps.readFileContent).not.toHaveBeenCalled();
   });
 
-  it('catches bad frontmatter locally, before any network call', async () => {
+  it('catches bad frontmatter locally, before cloning or touching git', async () => {
     const deps = buildDeps({
       readFileContent: vi.fn().mockResolvedValue('---\ntype: article\n---\n\nno title\n'),
     });
@@ -143,26 +187,25 @@ describe('runPublish', () => {
     const exitCode = await runPublish(buildOptions(), deps);
 
     expect(exitCode).toBe(1);
-    expect(deps.fetchImpl).not.toHaveBeenCalled();
+    expect(deps.git.ensureClone).not.toHaveBeenCalled();
     expect(deps.log.error).toHaveBeenCalledWith(expect.stringContaining('frontmatter'));
   });
 
-  it('--dry-run prints the resolved frontmatter and sends nothing', async () => {
+  it('--dry-run prints the resolved frontmatter and writes/pushes nothing', async () => {
     const deps = buildDeps();
 
     const exitCode = await runPublish(buildOptions({ dryRun: true }), deps);
 
     expect(exitCode).toBe(0);
-    expect(deps.fetchImpl).not.toHaveBeenCalled();
+    expect(deps.git.ensureClone).not.toHaveBeenCalled();
+    expect(deps.git.commitAndPush).not.toHaveBeenCalled();
     expect(deps.pollUntilLive).not.toHaveBeenCalled();
     const loggedText = deps.log.info.mock.calls.flat().join('\n');
     expect(loggedText).toContain('"slug": "hello-world"');
   });
 
   it('applies --status, --type, and --tags as overrides before validation', async () => {
-    const deps = buildDeps({
-      readFileContent: vi.fn().mockResolvedValue(articleMarkdown),
-    });
+    const deps = buildDeps();
 
     await runPublish(
       buildOptions({ dryRun: true, status: 'published', type: 'til', tags: 'a, b ,c' }),
@@ -191,52 +234,25 @@ describe('runPublish', () => {
     expect(deps.openUrl).not.toHaveBeenCalled();
   });
 
-  it('rejects an unsupported kind before any network call', async () => {
+  it('rejects an unsupported kind before touching git', async () => {
     const deps = buildDeps();
 
     const exitCode = await runPublish(buildOptions({ kind: 'video' }), deps);
 
     expect(exitCode).toBe(1);
-    expect(deps.fetchImpl).not.toHaveBeenCalled();
+    expect(deps.git.ensureClone).not.toHaveBeenCalled();
   });
 
-  it('sends no protection-bypass header when protectionBypass is not set', async () => {
+  it('writes an empty assets directory contribution when the note has no embeds', async () => {
     const deps = buildDeps();
 
     await runPublish(buildOptions(), deps);
 
-    const [, requestInit] = ingestCall(deps.fetchImpl as Mock);
-    expect(requestInit.headers).not.toHaveProperty('x-vercel-protection-bypass');
+    const written = await readFile(join(clonePath, 'posts/2026/hello-world.md'), 'utf-8');
+    expect(written).toContain('Body text.');
   });
 
-  it('sends the protection-bypass header on both the ingest request and polling when set', async () => {
-    const deps = buildDeps({ protectionBypass: 'bypass-secret' });
-
-    await runPublish(buildOptions(), deps);
-
-    const [, requestInit] = ingestCall(deps.fetchImpl as Mock);
-    expect(requestInit.headers).toMatchObject({
-      'x-vercel-protection-bypass': 'bypass-secret',
-    });
-    expect(deps.pollUntilLive).toHaveBeenCalledWith(
-      'https://publish.example.test/hello-world',
-      deps.fetchImpl,
-      undefined,
-      { 'x-vercel-protection-bypass': 'bypass-secret' },
-    );
-  });
-
-  it('sends an empty assets array when the note has no embeds', async () => {
-    const deps = buildDeps();
-
-    await runPublish(buildOptions(), deps);
-
-    const body = await sentBody(deps.fetchImpl as Mock);
-    expect(body.assets).toEqual([]);
-    expect(body.body).toContain('Body text.');
-  });
-
-  it('resolves an embedded image against the vault root, uploads it, and rewrites the body', async () => {
+  it('resolves an embedded image against the vault root, writes it alongside the article, and rewrites the body', async () => {
     const imageBytes = Buffer.from('fake-png-bytes');
     const deps = buildDeps({
       readFileContent: vi
@@ -256,17 +272,10 @@ describe('runPublish', () => {
 
     await runPublish(buildOptions({ filePath: '/vault/note.md' }), deps);
 
-    const body = await sentBody(deps.fetchImpl as Mock);
-    expect(body.assets).toEqual([
-      {
-        path: 'image.png',
-        contentType: 'image/png',
-        data: imageBytes.toString('base64'),
-      },
-    ]);
-    expect(body.body).toBe(
-      '\n# Hello\n\nBody ![](/assets/hello-world/image.png) text.\n',
-    );
+    const writtenAsset = await readFile(join(clonePath, 'assets/hello-world/image.png'));
+    expect(writtenAsset.equals(imageBytes)).toBe(true);
+    const written = await readFile(join(clonePath, 'posts/2026/hello-world.md'), 'utf-8');
+    expect(written).toContain('![](/assets/hello-world/image.png)');
   });
 
   it('warns but still publishes when an embedded asset is missing', async () => {
@@ -293,90 +302,37 @@ describe('runPublish', () => {
 
     expect(exitCode).toBe(0);
     expect(deps.assetFs.exists).not.toHaveBeenCalled();
-    const body = await sentBody(deps.fetchImpl as Mock);
-    expect(body.body).toContain('![[image.png]]');
+    const written = await readFile(join(clonePath, 'posts/2026/hello-world.md'), 'utf-8');
+    expect(written).toContain('![[image.png]]');
   });
 
-  it('reports a non-2xx ingest response as an error, naming the server-provided reason', async () => {
-    const deps = buildDeps({
-      fetchImpl: vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ error: 'frontmatter.type: expected one of ...' }), {
-          status: 422,
-        }),
-      ),
-    });
-
-    const exitCode = await runPublish(buildOptions(), deps);
-
-    expect(exitCode).toBe(1);
-    expect(deps.log.error).toHaveBeenCalledWith(
-      expect.stringContaining('frontmatter.type'),
+  it('resolves a wikilink to an existing article already in the clone', async () => {
+    await mkdir(join(clonePath, 'posts/2025'), { recursive: true });
+    await writeFile(
+      join(clonePath, 'posts/2025/other-note.md'),
+      '---\ntitle: Other Note\nslug: other-note\ndate: 2025-01-01\nstatus: published\n---\n\nBody.\n',
     );
-  });
-
-  it('reports a non-JSON error response (e.g. a platform-level 413) by falling back to its raw text', async () => {
-    const deps = buildDeps({
-      fetchImpl: vi.fn().mockResolvedValue(
-        new Response('Request Entity Too Large\n\nFUNCTION_PAYLOAD_TOO_LARGE', {
-          status: 413,
-          headers: { 'content-type': 'text/plain' },
-        }),
-      ),
-    });
-
-    const exitCode = await runPublish(buildOptions(), deps);
-
-    expect(exitCode).toBe(1);
-    expect(deps.log.error).toHaveBeenCalledWith(
-      expect.stringContaining('FUNCTION_PAYLOAD_TOO_LARGE'),
-    );
-  });
-
-  it('fails locally, before any network call, when the request would exceed the payload limit', async () => {
     const deps = buildDeps({
       readFileContent: vi
         .fn()
-        .mockResolvedValue(`---\ntitle: Big post\n---\n\n![[huge.png]]\n`),
-      assetFs: {
-        readBytes: vi.fn().mockResolvedValue(Buffer.alloc(5 * 1024 * 1024, 'a')),
-        exists: vi.fn().mockResolvedValue(true),
-      },
+        .mockResolvedValue(
+          articleMarkdown.replace('Body text.', 'See [[Other Note]] for details.'),
+        ),
     });
 
-    const exitCode = await runPublish(buildOptions({ filePath: 'huge-note.md' }), deps);
+    await runPublish(buildOptions(), deps);
 
-    expect(exitCode).toBe(1);
-    expect(deps.fetchImpl).not.toHaveBeenCalled();
-    expect(deps.log.error).toHaveBeenCalledWith(expect.stringContaining('MB'));
+    const written = await readFile(join(clonePath, 'posts/2026/hello-world.md'), 'utf-8');
+    expect(written).toContain('[Other Note](/other-note)');
   });
 
   it('warns when an existing article with the same title has a different slug', async () => {
-    const deps = buildDeps({
-      fetchImpl: vi.fn().mockImplementation((url: string) => {
-        if (url.endsWith('/api/list')) {
-          return Promise.resolve(
-            new Response(
-              JSON.stringify({
-                articles: [
-                  { slug: 'hello-old', title: 'Hello world', status: 'published' },
-                ],
-              }),
-              { status: 200 },
-            ),
-          );
-        }
-        return Promise.resolve(
-          new Response(
-            JSON.stringify({
-              url: 'https://publish.example.test/hello-world',
-              slug: 'hello-world',
-              operation: 'update',
-            }),
-            { status: 200 },
-          ),
-        );
-      }),
-    });
+    await mkdir(join(clonePath, 'posts/2025'), { recursive: true });
+    await writeFile(
+      join(clonePath, 'posts/2025/hello-old.md'),
+      '---\ntitle: Hello world\nslug: hello-old\ndate: 2025-01-01\nstatus: published\n---\n\nOld body.\n',
+    );
+    const deps = buildDeps();
 
     await runPublish(buildOptions(), deps);
 
@@ -385,33 +341,17 @@ describe('runPublish', () => {
     );
   });
 
-  it('does not warn on --dry-run - nothing is sent', async () => {
+  it('does not warn on --dry-run - nothing is read from the clone', async () => {
     const deps = buildDeps();
 
     await runPublish(buildOptions({ dryRun: true }), deps);
 
-    expect(deps.fetchImpl).not.toHaveBeenCalled();
+    expect(deps.git.ensureClone).not.toHaveBeenCalled();
     expect(deps.log.warn).not.toHaveBeenCalled();
   });
 
-  it('does not fail the publish when the slug-change check itself fails', async () => {
-    const deps = buildDeps({
-      fetchImpl: vi.fn().mockImplementation((url: string) => {
-        if (url.endsWith('/api/list')) {
-          return Promise.reject(new Error('network error'));
-        }
-        return Promise.resolve(
-          new Response(
-            JSON.stringify({
-              url: 'https://publish.example.test/hello-world',
-              slug: 'hello-world',
-              operation: 'create',
-            }),
-            { status: 200 },
-          ),
-        );
-      }),
-    });
+  it('does not warn, and still publishes, when no posts/ directory exists yet in a fresh clone', async () => {
+    const deps = buildDeps();
 
     const exitCode = await runPublish(buildOptions(), deps);
 
@@ -427,7 +367,7 @@ const pageHtml = `<!doctype html>
 </html>`;
 
 describe('runPublish - kind: page', () => {
-  it('publishes an HTML page, sending it as the body verbatim with kind "page"', async () => {
+  it('publishes an HTML page, writing it into the clone verbatim', async () => {
     const deps = buildDeps({ readFileContent: vi.fn().mockResolvedValue(pageHtml) });
 
     const exitCode = await runPublish(
@@ -436,9 +376,11 @@ describe('runPublish - kind: page', () => {
     );
 
     expect(exitCode).toBe(0);
-    const sent = await sentBody(deps.fetchImpl as Mock);
-    expect(sent.kind).toBe('page');
-    expect(sent.body).toBe(pageHtml);
+    const written = await readFile(
+      join(clonePath, 'pages/2026/an-inkloop-artifact.html'),
+      'utf-8',
+    );
+    expect(written).toBe(pageHtml);
   });
 
   it('derives the slug from the <title> tag when no shekse:slug meta exists', async () => {
@@ -446,10 +388,11 @@ describe('runPublish - kind: page', () => {
 
     await runPublish(buildOptions({ kind: 'page', filePath: 'artifact.html' }), deps);
 
-    const sent = await sentBody(deps.fetchImpl as Mock);
-    const frontmatter = sent.frontmatter as { title: string; slug: string };
-    expect(frontmatter.title).toBe('An inkloop artifact');
-    expect(frontmatter.slug).toBe('an-inkloop-artifact');
+    const meta = JSON.parse(
+      await readFile(join(clonePath, 'pages/2026/an-inkloop-artifact.json'), 'utf-8'),
+    ) as { title: string; slug: string };
+    expect(meta.title).toBe('An inkloop artifact');
+    expect(meta.slug).toBe('an-inkloop-artifact');
   });
 
   it('does not run embed resolution for a page - it is not markdown', async () => {
@@ -483,8 +426,10 @@ describe('runPublish - kind: page', () => {
       deps,
     );
 
-    const sent = await sentBody(deps.fetchImpl as Mock);
-    expect((sent.frontmatter as { status: string }).status).toBe('published');
+    const meta = JSON.parse(
+      await readFile(join(clonePath, 'pages/2026/an-inkloop-artifact.json'), 'utf-8'),
+    ) as { status: string };
+    expect(meta.status).toBe('published');
   });
 
   it('a meta tag wins over a --status flag for the same page', async () => {
@@ -499,11 +444,13 @@ describe('runPublish - kind: page', () => {
       deps,
     );
 
-    const sent = await sentBody(deps.fetchImpl as Mock);
-    expect((sent.frontmatter as { status: string }).status).toBe('draft');
+    const meta = JSON.parse(
+      await readFile(join(clonePath, 'pages/2026/an-inkloop-artifact.json'), 'utf-8'),
+    ) as { status: string };
+    expect(meta.status).toBe('draft');
   });
 
-  it('rejects a page with no resolvable title, before any network call', async () => {
+  it('rejects a page with no resolvable title, before touching git', async () => {
     const deps = buildDeps({
       readFileContent: vi
         .fn()
@@ -516,7 +463,7 @@ describe('runPublish - kind: page', () => {
     );
 
     expect(exitCode).toBe(1);
-    expect(deps.fetchImpl).not.toHaveBeenCalled();
+    expect(deps.git.ensureClone).not.toHaveBeenCalled();
     expect(deps.log.error).toHaveBeenCalledWith(expect.stringContaining('title'));
   });
 });

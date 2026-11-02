@@ -1,6 +1,6 @@
 # Content schema
 
-The precise contract for what a content file is. Defined once in `packages/schema` and enforced in three places: the CLI before sending, the ingest endpoint on receipt, and the site at build time.
+The precise contract for what a content file is. Defined once in `packages/schema` and enforced in two places: the CLI before writing to the content repo, and the site at build time.
 
 If you are changing anything about frontmatter, slugs, or Obsidian syntax, this is the file to read and the file to update.
 

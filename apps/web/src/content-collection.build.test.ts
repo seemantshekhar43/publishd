@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { derivePreviewId } from './lib/preview.js';
+import { derivePreviewId } from 'publishd-schema';
 import { getSiteConfig } from '../../../site.config.js';
 
 const siteUrl = getSiteConfig().url;
@@ -20,8 +20,9 @@ const webRoot = fileURLToPath(new URL('..', import.meta.url));
 const postsDir = fileURLToPath(new URL('./content/posts/', import.meta.url));
 const fixturesDir = fileURLToPath(new URL('../tests/fixtures/', import.meta.url));
 // The Vercel adapter splits build output into dist/client (static assets,
-// what a CDN serves) and dist/server (the ingest function) - see
-// apps/web/.vercel/output after a build.
+// what a CDN serves) and dist/server (the non-prerendered routes, e.g.
+// [...slug].astro and preview/[...uuid].ts) - see apps/web/.vercel/output
+// after a build.
 const distDir = fileURLToPath(new URL('../dist/client/', import.meta.url));
 
 const publishedFixture = `${postsDir}published-post.md`;
