@@ -1,6 +1,6 @@
 ---
 name: publish
-description: Publish the current markdown or HTML document to the configured publishd endpoint. Use when the user says "publish this", "ship this post", "put this online", or asks to share a write-up as a URL.
+description: Publish the current markdown or HTML document through the configured publishd profile. Use when the user says "publish this", "ship this post", "put this online", or asks to share a write-up as a URL.
 ---
 
 # publish
@@ -54,7 +54,7 @@ Read [`docs/design.md`](https://raw.githubusercontent.com/seemantshekhar43/publi
 ## Rules
 
 - **Draft-first, always.** Never run `--status published` in the same turn that created the draft. Making something public is the user's decision, taken with the preview in front of them.
-- **Use `--dry-run` when unsure.** It prints the resolved frontmatter and, if the file embeds any images, the asset(s) it would upload - without sending anything.
+- **Use `--dry-run` when unsure.** It prints the resolved frontmatter and, if the file embeds any images, the asset(s) it would upload - without writing or pushing anything.
 - If validation fails, the error names the field and the expected shape. Fix the file, do not work around the schema.
 - Never pass credentials on the command line. The CLI reads `~/.config/publishd/config.toml`, or `PUBLISHD_CONTENT_REPO`/`PUBLISHD_SITE_URL` from the environment.
 
