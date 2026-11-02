@@ -4,11 +4,11 @@
  * published. See docs/content-schema.md section 6 and issue #20.
  *
  * Everything else in the section 6 normalisation table (wikilinks, inline
- * tags, callouts, comments, Dataview/Templater stripping) runs server-side
- * at ingest, per docs/architecture.md section 4 - it's pure text and the
- * server already has the content repo's state. Embeds are the one
- * construct that needs the local filesystem, which only the CLI has, so
- * they're resolved here instead.
+ * tags, callouts, comments, Dataview/Templater stripping) runs via
+ * `normaliseObsidianMarkdown` in publishd-schema instead, per
+ * docs/architecture.md section 4 - it's pure text plus the local clone's
+ * published-slug set. Embeds are the one construct that needs to read
+ * actual file bytes off disk, so they're resolved here instead.
  */
 
 import { dirname, join } from 'node:path';

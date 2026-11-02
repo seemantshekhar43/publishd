@@ -20,7 +20,7 @@ v2, deferred to M5 so it can be designed after a few months of actually using th
 3. Under that shell command's own settings, open **Events** and bind a hotkey (for
    example `⌘⇧P` on macOS, or whatever isn't already taken in your vault). You can also
    trigger it from the command palette without a hotkey.
-4. Make sure `publishd` can find your endpoint and token - run `publishd init` once from a
+4. Make sure `publishd` can find your content repo and site - run `publishd init` once from a
    terminal to write `~/.config/publishd/config.toml` (see the root [README](../../README.md)).
    The Shell commands plugin runs in your normal shell environment, so anything `publishd`
    can already do from a terminal, it can do here too.

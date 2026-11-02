@@ -1,13 +1,12 @@
 /**
- * Server-side normalisation of Obsidian-flavoured markdown, run at ingest
- * before the article is committed - see docs/architecture.md section 4 step
- * 3 and docs/content-schema.md section 6. Unknown or unsupported syntax
- * degrades to plain text; this must never produce a broken page.
+ * Normalisation of Obsidian-flavoured markdown, run by the CLI before the
+ * article is written into the content repo - see docs/architecture.md
+ * section 4 and docs/content-schema.md section 6. Unknown or unsupported
+ * syntax degrades to plain text; this must never produce a broken page.
  *
- * Image embeds (`![[image.png]]`) are the one construct handled
- * client-side instead, in apps/cli/src/assets.ts, since only the CLI has
- * the local filesystem to read them from. Everything here is pure text
- * plus the content repo's published-slug set, which only the server has.
+ * Image embeds (`![[image.png]]`) are handled separately, in
+ * apps/cli/src/assets.ts, since they need the local filesystem to read
+ * bytes from rather than the published-slug lookup this needs.
  *
  * Callout syntax (`> [!note]`) is deliberately left untouched here: a
  * blockquote is valid CommonMark whether or not the marker is understood,

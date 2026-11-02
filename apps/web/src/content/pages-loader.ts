@@ -5,7 +5,7 @@
  *
  * A `page`'s frontmatter can't be losslessly recovered from its `<meta>`
  * tags alone (a derived slug, a defaulted status, `updated`), so
- * `commitPage` in lib/content-repo.ts writes it as a `.json` sidecar next
+ * `commitPage` in the CLI's content-repo.ts writes it as a `.json` sidecar next
  * to the `.html` file rather than re-deriving it here on every build - the
  * loader just reads both back. The `.html` file itself is never parsed or
  * rewritten; it's held as an opaque string and served byte-for-byte.

@@ -14,13 +14,14 @@ import { fileURLToPath } from 'node:url';
 import { defineCommand, runMain, type CommandDef } from 'citty';
 import consola from 'consola';
 import type { AssetFs } from './assets.js';
-import {
-  defaultConfigPath,
-  loadConfig,
-  resolveProfile,
-  type ResolvedProfile,
-} from './config.js';
+import { defaultConfigPath, loadConfig, resolveProfile, type Profile } from './config.js';
 import { runDoctor } from './doctor.js';
+import {
+  ensureClone,
+  commitAndPush,
+  remoteIsReachable,
+  workingTreeStatus,
+} from './git.js';
 import { runInit } from './init.js';
 import { runList } from './list.js';
 import { openUrl } from './open.js';
@@ -35,6 +36,14 @@ const nodeAssetFs: AssetFs = {
       .then(() => true)
       .catch(() => false),
 };
+
+const gitOps = { ensureClone, commitAndPush, remoteIsReachable, workingTreeStatus };
+
+async function cloneExists(clonePath: string): Promise<boolean> {
+  return stat(clonePath)
+    .then(() => true)
+    .catch(() => false);
+}
 
 export const CLI_NAME = 'publishd';
 export const CLI_VERSION = '0.0.0';
@@ -80,10 +89,9 @@ export const command = defineCommand({
 
     // A profile is required to actually publish, but --dry-run validates
     // and prints locally without one - see issue #7 acceptance criteria.
-    let endpoint = '<no profile configured>';
-    let token = '';
+    let profile: Profile = { contentRepo: '', branch: 'main', siteUrl: '' };
     try {
-      ({ endpoint, token } = resolveProfile(config, args.profile, process.env));
+      profile = resolveProfile(config, args.profile, process.env);
     } catch (error) {
       if (!args['dry-run']) {
         throw error;
@@ -105,13 +113,13 @@ export const command = defineCommand({
         readStdin: readStdinToString,
         readFileContent: (path) => readFile(path, 'utf-8'),
         fetchImpl: fetch,
-        endpoint,
-        token,
-        protectionBypass: process.env.PUBLISHD_PROTECTION_BYPASS,
+        profile,
+        profileName: args.profile ?? 'default',
         log: consola,
         pollUntilLive,
         openUrl,
         assetFs: nodeAssetFs,
+        git: gitOps,
       },
     );
 
@@ -121,10 +129,13 @@ export const command = defineCommand({
 
 async function resolveProfileOrExit(
   profileName: string | undefined,
-): Promise<ResolvedProfile | undefined> {
+): Promise<{ profile: Profile; profileName: string } | undefined> {
   const config = await loadConfig();
   try {
-    return resolveProfile(config, profileName, process.env);
+    return {
+      profile: resolveProfile(config, profileName, process.env),
+      profileName: profileName ?? 'default',
+    };
   } catch (error) {
     consola.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
@@ -139,16 +150,11 @@ export const listCommand = defineCommand({
     profile: { type: 'string', description: 'Named profile from the config file' },
   },
   async run({ args }) {
-    const profile = await resolveProfileOrExit(args.profile);
-    if (!profile) return;
+    const resolved = await resolveProfileOrExit(args.profile);
+    if (!resolved) return;
     process.exitCode = await runList(
       { status: args.status },
-      {
-        ...profile,
-        fetchImpl: fetch,
-        protectionBypass: process.env.PUBLISHD_PROTECTION_BYPASS,
-        log: consola,
-      },
+      { ...resolved, log: consola, git: gitOps },
     );
   },
 });
@@ -164,13 +170,12 @@ export const unpublishCommand = defineCommand({
     profile: { type: 'string', description: 'Named profile from the config file' },
   },
   async run({ args }) {
-    const profile = await resolveProfileOrExit(args.profile);
-    if (!profile) return;
+    const resolved = await resolveProfileOrExit(args.profile);
+    if (!resolved) return;
     process.exitCode = await runUnpublish(args.slug, {
-      ...profile,
-      fetchImpl: fetch,
-      protectionBypass: process.env.PUBLISHD_PROTECTION_BYPASS,
+      ...resolved,
       log: consola,
+      git: gitOps,
     });
   },
 });
@@ -178,7 +183,7 @@ export const unpublishCommand = defineCommand({
 export const doctorCommand = defineCommand({
   meta: {
     name: 'doctor',
-    description: 'Check config, token validity, and endpoint reachability',
+    description: 'Check config, content repo reachability, and site reachability',
   },
   args: {
     profile: { type: 'string', description: 'Named profile from the config file' },
@@ -193,8 +198,10 @@ export const doctorCommand = defineCommand({
     }
     process.exitCode = await runDoctor({
       profile,
+      profileName: args.profile ?? 'default',
       fetchImpl: fetch,
-      protectionBypass: process.env.PUBLISHD_PROTECTION_BYPASS,
+      git: gitOps,
+      cloneExists,
       log: consola,
     });
   },
@@ -267,7 +274,7 @@ export const initCommand = defineCommand({
   },
 });
 
-type DoctorProfile = ResolvedProfile | { error: string };
+type DoctorProfile = Profile | { error: string };
 
 // citty's CommandDef is contravariant in its args, so a map of
 // differently-shaped commands needs `any` here; each command's own `args`

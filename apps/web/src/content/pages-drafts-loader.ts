@@ -5,7 +5,7 @@
  */
 
 import type { Loader } from 'astro/loaders';
-import { derivePreviewId } from '../lib/preview.js';
+import { derivePreviewId } from 'publishd-schema';
 import { createPagesLoader } from './pages-loader.js';
 
 export function pagesDraftsLoader(

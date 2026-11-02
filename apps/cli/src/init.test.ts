@@ -33,8 +33,9 @@ describe('runInit', () => {
       configPath: '/home/user/.config/publishd/config.toml',
       prompt: buildPrompt({
         'Profile name': 'default',
-        Endpoint: 'https://publish.example.test',
-        Token: 'super-secret-token',
+        'Content repo': 'git@example.test:you/content.git',
+        Branch: 'main',
+        'Site URL': 'https://publish.example.test',
       }),
       writeConfigFile,
       log,
@@ -46,22 +47,51 @@ describe('runInit', () => {
       expect.stringContaining('[default]'),
     );
     const written = writeConfigFile.mock.calls[0]?.[1] as string;
-    expect(written).toContain('endpoint = "https://publish.example.test"');
-    expect(written).toContain('token = "super-secret-token"');
+    expect(written).toContain('contentRepo = "git@example.test:you/content.git"');
+    expect(written).toContain('branch = "main"');
+    expect(written).toContain('siteUrl = "https://publish.example.test"');
+    expect(written).not.toContain('previewSecret');
+    expect(written).not.toContain('clonePath');
   });
 
-  it('defaults the profile name to "default" when left blank', async () => {
+  it('defaults the profile name to "default" and the branch to "main" when left blank', async () => {
     const writeConfigFile = vi.fn().mockResolvedValue(undefined);
 
     await runInit({
       existingConfig: { profiles: {} },
       configPath: '/config.toml',
-      prompt: buildPrompt({ Endpoint: 'https://x.test', Token: 'tok' }),
+      prompt: buildPrompt({
+        'Content repo': 'git@example.test:you/content.git',
+        'Site URL': 'https://x.test',
+      }),
       writeConfigFile,
       log: buildLogger(),
     });
 
-    expect(writeConfigFile.mock.calls[0]?.[1]).toContain('[default]');
+    const written = writeConfigFile.mock.calls[0]?.[1] as string;
+    expect(written).toContain('[default]');
+    expect(written).toContain('branch = "main"');
+  });
+
+  it('includes an optional previewSecret and clonePath when provided', async () => {
+    const writeConfigFile = vi.fn().mockResolvedValue(undefined);
+
+    await runInit({
+      existingConfig: { profiles: {} },
+      configPath: '/config.toml',
+      prompt: buildPrompt({
+        'Content repo': 'git@example.test:you/content.git',
+        'Site URL': 'https://x.test',
+        'Preview secret': 'shh',
+        'Local clone path': '/custom/clone',
+      }),
+      writeConfigFile,
+      log: buildLogger(),
+    });
+
+    const written = writeConfigFile.mock.calls[0]?.[1] as string;
+    expect(written).toContain('previewSecret = "shh"');
+    expect(written).toContain('clonePath = "/custom/clone"');
   });
 
   it('merges into an existing config instead of overwriting other profiles', async () => {
@@ -69,13 +99,19 @@ describe('runInit', () => {
 
     await runInit({
       existingConfig: {
-        profiles: { staging: { endpoint: 'https://staging.test', token: 'a' } },
+        profiles: {
+          staging: {
+            contentRepo: 'git@example.test:you/staging.git',
+            branch: 'main',
+            siteUrl: 'https://staging.test',
+          },
+        },
       },
       configPath: '/config.toml',
       prompt: buildPrompt({
         'Profile name': 'default',
-        Endpoint: 'https://prod.test',
-        Token: 'b',
+        'Content repo': 'git@example.test:you/content.git',
+        'Site URL': 'https://prod.test',
       }),
       writeConfigFile,
       log: buildLogger(),
@@ -86,7 +122,7 @@ describe('runInit', () => {
     expect(written).toContain('[default]');
   });
 
-  it('refuses an empty endpoint', async () => {
+  it('refuses an empty content repo', async () => {
     const log = buildLogger();
     const writeConfigFile = vi.fn();
 
@@ -99,24 +135,24 @@ describe('runInit', () => {
     });
 
     expect(exitCode).toBe(1);
-    expect(log.errors[0]).toContain('endpoint');
+    expect(log.errors[0]).toContain('content repo');
     expect(writeConfigFile).not.toHaveBeenCalled();
   });
 
-  it('refuses an empty token', async () => {
+  it('refuses an empty site URL', async () => {
     const log = buildLogger();
     const writeConfigFile = vi.fn();
 
     const exitCode = await runInit({
       existingConfig: { profiles: {} },
       configPath: '/config.toml',
-      prompt: buildPrompt({ Endpoint: 'https://x.test' }),
+      prompt: buildPrompt({ 'Content repo': 'git@example.test:you/content.git' }),
       writeConfigFile,
       log,
     });
 
     expect(exitCode).toBe(1);
-    expect(log.errors[0]).toContain('token');
+    expect(log.errors[0]).toContain('site URL');
     expect(writeConfigFile).not.toHaveBeenCalled();
   });
 });
