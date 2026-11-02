@@ -13,7 +13,7 @@ Not a CMS. There is no admin UI and no database. Your editor stays whatever it a
 
 > ## 🚧 Status: M1 in progress, not deployed yet
 >
-> The schema, the site skeleton, the ingest endpoint, and the `publishd` CLI exist and are tested, but there is no live deployment - the private content repo and the Vercel/DNS setup (issues #5 and #9) haven't landed, so `publishd ./my-note.md` doesn't have anywhere to publish to yet.
+> The schema, the site skeleton, and the `publishd` CLI exist and are tested, but there is no live deployment - the private content repo and the Vercel/DNS setup (issues #5 and #9) haven't landed, so `publishd ./my-note.md` doesn't have anywhere to publish to yet.
 >
 > It is public from the first commit because building in the open keeps the configuration honest - not because it is ready. Follow the [M1 milestone](../../milestones) to see the walking skeleton come together.
 >
@@ -59,7 +59,7 @@ This is safe **only because the site has no cookies, no login, and no authentica
 | Doc | What is in it |
 | --- | --- |
 | [Product requirements](docs/PRD.md) | Full scope, every decision and why, the decision log |
-| [Architecture](docs/architecture.md) | System design, ingest contract, auth, failure modes |
+| [Architecture](docs/architecture.md) | System design, the direct-git publish flow, failure modes |
 | [Content schema](docs/content-schema.md) | Frontmatter contract, slugs, Obsidian normalisation |
 | [Design](docs/design.md) | Visual system and content style guide |
 | [Development](docs/development.md) | Workflow, conventions, security practices |
