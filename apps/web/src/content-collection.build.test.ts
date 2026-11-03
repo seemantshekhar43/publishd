@@ -27,7 +27,7 @@ const distDir = fileURLToPath(new URL('../dist/client/', import.meta.url));
 // What Vercel actually deploys - distinct from dist/client above. The
 // adapter copies dist/client here as part of the `astro build` step, so
 // anything written to dist/client afterwards (e.g. by pagefind) must be
-// copied here too, or it never reaches production. See issue search#1.
+// copied here too, or it never reaches production. See issue #71.
 const vercelStaticDir = fileURLToPath(
   new URL('../.vercel/output/static/', import.meta.url),
 );
@@ -63,7 +63,7 @@ beforeAll(() => {
   });
   // Same as the `build` script - without this, pagefind's index lands in
   // dist/client but never in .vercel/output/static, the directory Vercel
-  // actually deploys (search#1).
+  // actually deploys (issue #71).
   execFileSync('node', ['scripts/copy-pagefind-to-vercel-output.mjs'], {
     cwd: webRoot,
     stdio: 'pipe',
