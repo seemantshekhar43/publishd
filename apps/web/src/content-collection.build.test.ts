@@ -24,6 +24,13 @@ const fixturesDir = fileURLToPath(new URL('../tests/fixtures/', import.meta.url)
 // [...slug].astro and preview/[...uuid].ts) - see apps/web/.vercel/output
 // after a build.
 const distDir = fileURLToPath(new URL('../dist/client/', import.meta.url));
+// What Vercel actually deploys - distinct from dist/client above. The
+// adapter copies dist/client here as part of the `astro build` step, so
+// anything written to dist/client afterwards (e.g. by pagefind) must be
+// copied here too, or it never reaches production. See issue #71.
+const vercelStaticDir = fileURLToPath(
+  new URL('../.vercel/output/static/', import.meta.url),
+);
 
 const publishedFixture = `${postsDir}published-post.md`;
 const draftFixture = `${postsDir}draft-post.md`;
@@ -50,6 +57,14 @@ beforeAll(() => {
   // Same as the `build` script (issue #25) - a separate step here so a
   // pagefind failure surfaces as its own error rather than astro build's.
   execFileSync('pnpm', ['exec', 'pagefind', '--site', 'dist/client'], {
+    cwd: webRoot,
+    stdio: 'pipe',
+    env,
+  });
+  // Same as the `build` script - without this, pagefind's index lands in
+  // dist/client but never in .vercel/output/static, the directory Vercel
+  // actually deploys (issue #71).
+  execFileSync('node', ['scripts/copy-pagefind-to-vercel-output.mjs'], {
     cwd: webRoot,
     stdio: 'pipe',
     env,
@@ -211,6 +226,11 @@ describe('search (issue #25)', () => {
   it('generates a pagefind index over the built output', () => {
     expect(existsSync(`${distDir}pagefind/pagefind.js`)).toBe(true);
     expect(existsSync(`${distDir}pagefind/pagefind-entry.json`)).toBe(true);
+  });
+
+  it('copies the pagefind index into the directory Vercel actually deploys', () => {
+    expect(existsSync(`${vercelStaticDir}pagefind/pagefind.js`)).toBe(true);
+    expect(existsSync(`${vercelStaticDir}pagefind/pagefind-entry.json`)).toBe(true);
   });
 
   it('renders the command palette trigger and dialog on the homepage', () => {

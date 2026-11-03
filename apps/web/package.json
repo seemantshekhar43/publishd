@@ -10,7 +10,7 @@
     "predev": "pnpm --filter publishd-schema build && tsc -b ../../tsconfig.site-config.json && node scripts/sync-content.mjs",
     "pretypecheck": "pnpm --filter publishd-schema build && tsc -b ../../tsconfig.site-config.json && node scripts/sync-content.mjs",
     "dev": "astro dev",
-    "build": "astro build && pagefind --site dist/client",
+    "build": "astro build && pagefind --site dist/client && node scripts/copy-pagefind-to-vercel-output.mjs",
     "preview": "astro preview",
     "typecheck": "astro check",
     "check-links": "node scripts/check-links.mjs",
